@@ -1,5 +1,9 @@
-public abstract class HamTimelineNode
+public class HamTimelineNode
 {
+	public HamTimelineNode()
+	{
+		
+	}
 }
 
 /*
