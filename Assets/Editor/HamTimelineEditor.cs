@@ -1,10 +1,11 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System;
+using System.Linq;
 using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
-using System.Collections;
+using System.Collections.Generic;
 
 class HamTimelineEditor : EditorWindow
 {
@@ -28,15 +29,30 @@ class HamTimelineEditor : EditorWindow
     	}
     }
 
+    private string newTimelineName;
     private void TimelineSelection()
     {
-    	GUILayout.Label("Select a timeline for editing");
+    	List<string> timelines = GetAllTimelines();
 
-    	string[] timelines = GetAllTimelines();
-    	for (int i = 0; i < timelines.Length; ++i)
+    	GUILayout.Label("Timeline Selection");
+
+    	EditorGUILayout.BeginVertical();
+    	this.newTimelineName = EditorGUILayout.TextField("New Timeline Name", this.newTimelineName);
+    	if (this.newTimelineName != null && this.newTimelineName.Length > 0 && !timelines.Contains(this.newTimelineName))
+    	{
+    		if (GUILayout.Button("Create " + this.newTimelineName))
+    		{
+    			LoadTimeline(this.newTimelineName, true);
+    		}
+    	}
+
+    	for (int i = 0; i < timelines.Count; ++i)
     	{
     		EditorGUILayout.BeginVertical();
-    		GUILayout.Label(timelines[i]);
+    		if (GUILayout.Button("Load " + timelines[i]))
+    		{
+    			LoadTimeline(timelines[i]);
+    		}
     		EditorGUILayout.EndVertical();
     	}
     }
@@ -48,10 +64,10 @@ class HamTimelineEditor : EditorWindow
 
     // Saving and Loading
     // ==================================================================================
-    private string[] GetAllTimelines()
+    private List<string> GetAllTimelines()
     {
     	string path = GetTimelinePath();
-		return Directory.GetFiles(path);
+		return new List<string>(Directory.GetFiles(path)).Where(t => !t.Contains(".meta")).ToList();
     }
     private void SaveTimeline(bool close = false)
     {
@@ -65,7 +81,7 @@ class HamTimelineEditor : EditorWindow
 
     	XmlSerializer serializer = new XmlSerializer(typeof(HamTimeline));
 		FileStream stream = new FileStream(path, FileMode.Create);
-		serializer.Serialize(stream, this);
+		serializer.Serialize(stream, this.ActiveTimeline);
 		stream.Close();
 
 		if (close)
