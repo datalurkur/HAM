@@ -70,7 +70,11 @@ class HamTimelineEditor : EditorWindow
 
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Save", GUILayout.ExpandWidth(false))) { SaveTimeline(); }
-        if (GUILayout.Button("Save and Close", GUILayout.ExpandWidth(false))) { SaveTimeline(true); }
+        if (GUILayout.Button("Save and Close", GUILayout.ExpandWidth(false)))
+        {
+            SaveTimeline(true);
+            return;
+        }
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
@@ -78,8 +82,78 @@ class HamTimelineEditor : EditorWindow
         if (GUILayout.Button("Overview Editing", GUILayout.ExpandWidth(false))) { this.activeEditingTab = EditingTab.OverviewEditing; }
         GUILayout.EndHorizontal();
 
-        GUILayout.BeginArea(new Rect(0, 0, Screen.width, Screen.height));
-        GUILayout.EndArea();
+        GUILayout.BeginVertical();
+        switch (this.activeEditingTab)
+        {
+        case EditingTab.SingleNodeEditing:
+            SingleNodeEditing();
+            break;
+        case EditingTab.OverviewEditing:
+            OverviewEditing();
+            break;
+        }
+        GUILayout.EndVertical();
+    }
+
+    private int selectedNode = HamTimeline.InvalidID;
+    private void SingleNodeEditing()
+    {
+        if (this.selectedNode == HamTimeline.InvalidID)
+        {
+            this.selectedNode = this.ActiveTimeline.OriginNodeID;
+        }
+        HamTimelineNode node = this.ActiveTimeline.Nodes[this.selectedNode];
+        switch (node.Type)
+        {
+        case TimelineNodeType.Dialog:
+            DialogNodeEditing(node as HamDialogNode);
+            break;
+        case TimelineNodeType.Branch:
+            BranchNodeEditing(node as HamBranchNode);
+            break;
+        case TimelineNodeType.Decision:
+            DecisionNodeEditing(node as HamDecisionNode);
+            break;
+        }
+    }
+
+    private void DialogNodeEditing(HamDialogNode node)
+    {
+        GUILayout.Label("Dialog Node");
+
+        GUILayout.Label("Speaker");
+        if (GUILayout.Button(this.ActiveTimeline.Characters[node.SpeakerID].Name, GUILayout.ExpandWidth(false)))
+        {
+            GenericMenu menu = new GenericMenu();
+            foreach (int id in this.ActiveTimeline.Characters.Keys)
+            {
+                menu.AddItem(
+                    new GUIContent(this.ActiveTimeline.Characters[id].Name),
+                    (id == node.SpeakerID),
+                    (userData) => { node.SpeakerID = (int)userData; },
+                    id
+                );
+            }
+            menu.ShowAsContext();
+        }
+
+        GUILayout.Label("Dialog Content");
+        node.Dialog = GUILayout.TextArea(node.Dialog);
+    }
+
+    private void BranchNodeEditing(HamBranchNode node)
+    {
+        GUILayout.Label("Branch Node");
+    }
+
+    private void DecisionNodeEditing(HamDecisionNode node)
+    {
+        GUILayout.Label("Decision Node");
+    }
+
+    private void OverviewEditing()
+    {
+
     }
 
     // Saving and Loading

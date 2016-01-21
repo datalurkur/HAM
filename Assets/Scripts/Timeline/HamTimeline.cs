@@ -17,7 +17,7 @@ public class HamTimeline
 	public SerializeableDictionary<int, HamTimelineNode> Nodes;
 
 	public static int InvalidID = -1;
-	private int idCount = 0;
+	public int IDCount = 0;
 
 	public HamTimeline()
 	{
@@ -36,7 +36,7 @@ public class HamTimeline
 
 	public HamScene AddScene(string name)
 	{
-		int id = idCount++;
+		int id = this.IDCount++;
 		HamScene scene = new HamScene(id, name);
 		this.Scenes[id] = scene;
 		return scene;
@@ -44,7 +44,7 @@ public class HamTimeline
 
 	public HamCharacter AddCharacter(string name)
 	{
-		int id = idCount++;
+		int id = this.IDCount++;
 		HamCharacter character = new HamCharacter(id, name);
 		this.Characters[id] = character;
 		return character;
@@ -52,9 +52,36 @@ public class HamTimeline
 
 	public HamTimelineNode AddDialogNode(int sceneID, int speakerID, string dialog)
 	{
-		int id = idCount++;
+		int id = this.IDCount++;
 		HamTimelineNode node = new HamDialogNode(id, sceneID, speakerID, dialog);
 		this.Nodes[id] = node;
 		return node;
+	}
+
+	public HamTimelineNode AddBranchNode(int sceneID)
+	{
+		int id = this.IDCount++;
+		HamTimelineNode node = new HamBranchNode(id, sceneID);
+		this.Nodes[id] = node;
+		return node;
+	}
+
+	public HamTimelineNode AddDecisionNode(int sceneID)
+	{
+		int id = this.IDCount++;
+		HamTimelineNode node = new HamDecisionNode(id, sceneID);
+		this.Nodes[id] = node;
+		return node;
+	}
+
+	public void RemoveNode(int nodeID)
+	{
+		if (nodeID == this.OriginNodeID)
+		{
+			// TODO - Pop up a box that tells the user why this didn't work
+			return;
+		}	
+
+		// TODO - Write this function durr
 	}
 }

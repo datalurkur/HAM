@@ -9,6 +9,8 @@ public enum TimelineNodeType
 }
 
 [XmlInclude(typeof(HamDialogNode))]
+[XmlInclude(typeof(HamBranchNode))]
+[XmlInclude(typeof(HamDecisionNode))]
 public abstract class HamTimelineNode
 {
 	public TimelineNodeType Type;
@@ -53,5 +55,31 @@ public class HamDialogNode : HamTimelineNode
 		this.NextNodeID = HamTimeline.InvalidID;
 		this.SpeakerID = speakerID;
 		this.Dialog = dialog;
+	}
+}
+
+public class HamBranchNode : HamTimelineNode
+{
+	public HamBranchNode()
+	{
+
+	}
+
+	public HamBranchNode(int id, int sceneID) : base(TimelineNodeType.Branch, id, sceneID)
+	{
+
+	}
+}
+
+public class HamDecisionNode : HamTimelineNode
+{
+	public HamDecisionNode()
+	{
+
+	}
+
+	public HamDecisionNode(int id, int sceneID) : base(TimelineNodeType.Decision, id, sceneID)
+	{
+
 	}
 }
