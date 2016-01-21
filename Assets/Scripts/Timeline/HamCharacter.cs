@@ -1,14 +1,17 @@
 public class HamCharacter
 {
+	public int ID;
 	public string Name;	
 
 	public HamCharacter()
 	{
-		this.Name = "NoName";
+		this.ID = HamTimeline.InvalidID;
+		this.Name = "Invalid Character";
 	}
 	
-	public HamCharacter(string name)
+	public HamCharacter(int id, string name)
 	{
+		this.ID = id;
 		this.Name = name;
 	}
 }

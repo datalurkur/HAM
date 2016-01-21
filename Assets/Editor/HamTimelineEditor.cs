@@ -10,11 +10,17 @@ using System.Collections.Generic;
 class HamTimelineEditor : EditorWindow
 {
     [MenuItem ("HAM/Timeline Editor")]
-    public static void  ShowWindow()
+    public static void ShowWindow()
     {
         EditorWindow.GetWindow(typeof(HamTimelineEditor));
     }
-    
+
+    private enum EditingTab
+    {
+        SingleNodeEditing,
+        OverviewEditing
+    }
+
     private HamTimeline ActiveTimeline;
 
     protected void OnGUI()
@@ -36,7 +42,7 @@ class HamTimelineEditor : EditorWindow
 
     	GUILayout.Label("Timeline Selection");
 
-    	EditorGUILayout.BeginVertical();
+    	GUILayout.BeginVertical();
     	this.newTimelineName = EditorGUILayout.TextField("New Timeline Name", this.newTimelineName);
     	if (this.newTimelineName != null && this.newTimelineName.Length > 0 && !timelines.Contains(this.newTimelineName))
     	{
@@ -48,18 +54,32 @@ class HamTimelineEditor : EditorWindow
 
     	for (int i = 0; i < timelines.Count; ++i)
     	{
-    		EditorGUILayout.BeginVertical();
-    		if (GUILayout.Button("Load " + timelines[i]))
+    		GUILayout.BeginVertical();
+    		if (GUILayout.Button("Load " + Path.GetFileName(timelines[i]), GUILayout.ExpandWidth(false)))
     		{
     			LoadTimeline(timelines[i]);
     		}
-    		EditorGUILayout.EndVertical();
+    		GUILayout.EndVertical();
     	}
     }
 
+    private EditingTab activeEditingTab = EditingTab.SingleNodeEditing;
     private void TimelineEditing()
     {
+        GUILayout.Label("Editing " + this.ActiveTimeline.Name);
 
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Save", GUILayout.ExpandWidth(false))) { SaveTimeline(); }
+        if (GUILayout.Button("Save and Close", GUILayout.ExpandWidth(false))) { SaveTimeline(true); }
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Single Node Editing", GUILayout.ExpandWidth(false))) { this.activeEditingTab = EditingTab.SingleNodeEditing; }
+        if (GUILayout.Button("Overview Editing", GUILayout.ExpandWidth(false))) { this.activeEditingTab = EditingTab.OverviewEditing; }
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginArea(new Rect(0, 0, Screen.width, Screen.height));
+        GUILayout.EndArea();
     }
 
     // Saving and Loading
@@ -87,6 +107,7 @@ class HamTimelineEditor : EditorWindow
 		if (close)
 		{
 			this.ActiveTimeline = null;
+            Repaint();
 		}
     }
     private void LoadTimeline(string name, bool createIfNotExist = false)
