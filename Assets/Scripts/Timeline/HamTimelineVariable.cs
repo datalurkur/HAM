@@ -8,28 +8,43 @@ public enum VariableType
 	Enumeration
 }
 
-public abstract class HamTimelineVariable
+public enum VariableComparison
 {
+	Equal,
+	NotEqual,
+	LessThan,
+	GreaterThan,
+	LessThanEqual,
+	GreaterThanEqual
+}
+
+public class HamTimelineVariable
+{
+	public void Pack(DataPacker packer)
+	{
+		// TODO - Pack variable
+	}
+
+	public void Unpack(DataUnpacker unpack)
+	{
+		// TODO - Unpack variable
+	}
+
+	public int ID;
 	public VariableType Type;
 	public string Name;
 
 	public HamTimelineVariable()
 	{
+		this.ID = HamTimeline.InvalidID;
 		this.Type = VariableType.Boolean;
 		this.Name = "Invalid Variable";
 	}
 
-	public HamTimelineVariable(VariableType type, string name)
+	public HamTimelineVariable(int id, VariableType type, string name)
 	{
+		this.ID = id;
 		this.Type = type;
 		this.Name = name;
-	}
-}
-
-public class HamBooleanVariable : HamTimelineVariable
-{
-	public HamBooleanVariable(string name) : base(VariableType.Boolean, name)
-	{
-
 	}
 }
