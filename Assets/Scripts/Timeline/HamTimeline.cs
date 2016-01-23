@@ -149,10 +149,10 @@ public class HamTimeline : Packable
 		return character;
 	}
 
-	public HamTimelineNode AddDialogNode(int sceneID, int speakerID, string dialog)
+	public HamTimelineNode AddDialogNode(int sceneID, int speakerID, string dialog, List<int> characters = null)
 	{
 		int id = this.IDCount++;
-		HamTimelineNode node = new HamDialogNode(id, sceneID, speakerID, dialog);
+		HamTimelineNode node = new HamDialogNode(id, sceneID, speakerID, dialog, characters);
 		this.Nodes[id] = node;
 		return node;
 	}
