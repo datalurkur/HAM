@@ -22,6 +22,11 @@ class HamTimelineEditor : EditorWindow
         VariableEditing
     }
 
+    // Consts
+    // ==================================================================================
+    private const int kTopBarHeight = 100;
+    // ==================================================================================
+
     // Style helpers
     // ==================================================================================
     private GUISkin skin;
@@ -49,22 +54,25 @@ class HamTimelineEditor : EditorWindow
         this.titleContent = new GUIContent("Timeline Editor");
 
         GUI.skin = Skin;
+        //GUILayout.BeginArea(new Rect(0, 0, this.position.width, this.position.height), Style("FullWindow"));
         if (this.activeTimeline == null) { TimelineSelection(); }
         else { TimelineEditing(); }
+        //GUILayout.EndArea();
         GUI.skin = null;
     }
 
     private HamTimeline activeTimeline;
-    private string newTimelineName;
     private EditingTab activeEditingTab = EditingTab.SingleNodeEditing;
+    private int selectedNode = HamTimeline.InvalidID;
     private int selectedCharacter = HamTimeline.InvalidID;
     private int selectedScene = HamTimeline.InvalidID;
+    private Vector2 scrollPosition;
 
     private void ResetEditorWindow()
     {
         this.activeTimeline = null;
-        this.newTimelineName = "";
         this.activeEditingTab = EditingTab.SingleNodeEditing;
+        this.selectedNode = HamTimeline.InvalidID;
         this.selectedCharacter = HamTimeline.InvalidID;
         this.selectedScene = HamTimeline.InvalidID;
     }
@@ -75,20 +83,16 @@ class HamTimelineEditor : EditorWindow
 
         List<string> timelines = GetAllTimelines();
 
-        GUILayout.BeginVertical();
-        this.newTimelineName = EditorGUILayout.TextField("New Timeline Name", this.newTimelineName);
-        if (this.newTimelineName != null && this.newTimelineName.Length > 0 && !timelines.Contains(this.newTimelineName))
+        if (GUILayout.Button("Create New Timeline"))
         {
-            if (GUILayout.Button("Create " + this.newTimelineName))
-            {
-                LoadTimeline(this.newTimelineName, true);
-            }
+            ModalTextWindow.Popup("Name New Timeline", LoadTimeline);
         }
 
+        GUILayout.Label("Load", Style("SubTitle"));
         for (int i = 0; i < timelines.Count; ++i)
         {
             GUILayout.BeginVertical();
-            if (GUILayout.Button("Load " + Path.GetFileName(timelines[i])))
+            if (GUILayout.Button(Path.GetFileName(timelines[i])))
             {
                 LoadTimeline(timelines[i]);
             }
@@ -98,34 +102,15 @@ class HamTimelineEditor : EditorWindow
 
     private void TimelineEditing()
     {
-        GUILayout.Label("Editing " + this.activeTimeline.Name, Style("Title"));
-
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Save")) { SaveTimeline(); }
-        if (GUILayout.Button("Save and Close"))
-        {
-            SaveTimeline(true);
-            return;
-        }
-        GUILayout.EndHorizontal();
-        GUILayout.Space(8);
-
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Single Node Editing")) { this.activeEditingTab = EditingTab.SingleNodeEditing; }
-        if (GUILayout.Button("Overview Editing")) { this.activeEditingTab = EditingTab.OverviewEditing; }
-        if (GUILayout.Button("Character Editing")) { this.activeEditingTab = EditingTab.CharacterEditing; }
-        if (GUILayout.Button("Variable Editing")) { this.activeEditingTab = EditingTab.VariableEditing; }
-        if (GUILayout.Button("Scene Editing")) { this.activeEditingTab = EditingTab.SceneEditing; }
-        GUILayout.EndHorizontal();
-        GUILayout.Space(8);
-
+        Rect available = new Rect(0, kTopBarHeight, position.width, position.height - kTopBarHeight);
+        GUILayout.BeginArea(available);
         switch (this.activeEditingTab)
         {
         case EditingTab.SingleNodeEditing:
             SingleNodeEditing();
             break;
         case EditingTab.OverviewEditing:
-            OverviewEditing();
+            OverviewEditing(available);
             break;
         case EditingTab.CharacterEditing:
             CharacterEditing();
@@ -137,9 +122,40 @@ class HamTimelineEditor : EditorWindow
             SceneEditing();
             break;
         }
+        GUILayout.EndArea();
+
+        // Render the controls for saving and loading last, so that doing a save or load in the middle of a render doesn't throw exceptions
+        RenderTopBar();
+    }
+    
+    private void RenderTopBar()
+    {
+        GUILayout.BeginArea(new Rect(0, 0, position.width, kTopBarHeight));
+        GUILayout.Label("Editing " + this.activeTimeline.Name, Style("Title"));
+
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Save")) { SaveTimeline(); }
+        if (GUILayout.Button("Save and Close")) { SaveTimeline(true); }
+        GUILayout.EndHorizontal();
+        GUILayout.Space(8);
+
+        GUILayout.BeginHorizontal();
+        GUI.enabled = (this.activeEditingTab != EditingTab.SingleNodeEditing);
+        if (GUILayout.Button("Single Node Editing")) { this.activeEditingTab = EditingTab.SingleNodeEditing; }
+        GUI.enabled = (this.activeEditingTab != EditingTab.OverviewEditing);
+        if (GUILayout.Button("Overview Editing")) { this.activeEditingTab = EditingTab.OverviewEditing; }
+        GUI.enabled = (this.activeEditingTab != EditingTab.CharacterEditing);
+        if (GUILayout.Button("Character Editing")) { this.activeEditingTab = EditingTab.CharacterEditing; }
+        GUI.enabled = (this.activeEditingTab != EditingTab.VariableEditing);
+        if (GUILayout.Button("Variable Editing")) { this.activeEditingTab = EditingTab.VariableEditing; }
+        GUI.enabled = (this.activeEditingTab != EditingTab.SceneEditing);
+        if (GUILayout.Button("Scene Editing")) { this.activeEditingTab = EditingTab.SceneEditing; }
+        GUI.enabled = true;
+        GUILayout.EndHorizontal();
+        GUILayout.Space(8);
+        GUILayout.EndArea();
     }
 
-    private int selectedNode = HamTimeline.InvalidID;
     private void SingleNodeEditing()
     {
         if (this.selectedNode == HamTimeline.InvalidID)
@@ -297,9 +313,11 @@ class HamTimelineEditor : EditorWindow
         GUILayout.EndVertical(); 
     }
 
-    private void OverviewEditing()
+    private void OverviewEditing(Rect available)
     {
-
+        Rect centerColumn = new Rect(0, 0, available.width, available.height);
+        GUILayout.BeginArea(centerColumn, Style("box"));
+        GUILayout.EndArea();
     }
 
     private bool NextNodeBlock(HamTimelineNode node, int nextNodeID, out HamTimelineNode newNode)
@@ -407,11 +425,16 @@ class HamTimelineEditor : EditorWindow
 
     private void CharacterEditing()
     {
+        // Grab the active character
         if (this.selectedCharacter == HamTimeline.InvalidID || !this.activeTimeline.Characters.ContainsKey(this.selectedCharacter))
         {
             this.selectedCharacter = this.activeTimeline.NarratorID;
         }
         HamCharacter character = this.activeTimeline.Characters[this.selectedCharacter];
+
+        GUILayout.Label("Character Editing", Style("SubTitle"));
+
+        // Display the character selection / add stripe
         GUILayout.BeginHorizontal(Style("box"));
         GUILayout.BeginVertical(GUILayout.MaxWidth(75));
         GUILayout.Label("Characters");
@@ -436,11 +459,14 @@ class HamTimelineEditor : EditorWindow
         }
         if (GUILayout.Button("+", Style("SmallButton")))
         {
-            this.selectedCharacter = this.activeTimeline.AddCharacter("New Character").ID;
-            Repaint();
+            ModalTextWindow.Popup("New Character Name", (name) =>
+            {
+                this.selectedCharacter = this.activeTimeline.AddCharacter(name).ID;
+            });
         }
         GUILayout.EndHorizontal();
 
+        // Display the selected character details
         GUILayout.BeginHorizontal(Style("box"));
         GUILayout.BeginVertical(GUILayout.MaxWidth(75));
         GUILayout.Label("Name");
@@ -450,8 +476,72 @@ class HamTimelineEditor : EditorWindow
     }
 
     private void VariableEditing()
-    {
+    { 
+        GUILayout.Label("Variable Editing", Style("SubTitle"));
+        GUILayout.BeginHorizontal(Style("box"));
+        for (int i = 0; i < (int)VariableType.NumTypes; ++i)
+        {
+            VariableType varType = (VariableType)i;
+            string varLabel = varType.ToString();
+            if (GUILayout.Button("Add " + varLabel))
+            {
+                ModalTextWindow.Popup("New " + varLabel + " Name", (name) =>
+                {
+                    this.activeTimeline.AddVariable(name, varType);
+                });
+            }
+        }
+        GUILayout.EndHorizontal();
+        GUILayout.BeginVertical(Style("box"));
+        foreach (int id in this.activeTimeline.Variables.Keys)
+        {
+            GUILayout.BeginHorizontal();
+            HamTimelineVariable v = this.activeTimeline.Variables[id];
 
+            GUILayout.BeginVertical(GUILayout.MaxWidth(75));
+            v.Name = GUILayout.TextField(v.Name);
+            GUILayout.EndVertical();
+            GUILayout.BeginVertical(GUILayout.MaxWidth(50));
+            if (GUILayout.Button(v.Type.ToString()))
+            {
+                GenericMenu menu = new GenericMenu();
+                for (int j = 0; j < (int)VariableType.NumTypes; ++j)
+                {
+                    VariableType type = (VariableType)j;
+                    menu.AddItem(new GUIContent(type.ToString()), v.Type == type, (t) => { v.SetType((VariableType)t); }, type);
+                }
+                menu.ShowAsContext();
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.BeginVertical(GUILayout.MaxWidth(50));
+            switch (v.Type)
+            {
+                case VariableType.Boolean:
+                {
+                    bool bVal = v.Get<bool>();
+                    if (GUILayout.Button(bVal.ToString()))
+                    {
+                        v.Set(!bVal);
+                    }
+                    break;
+                }
+                case VariableType.Integer:
+                {
+                    int iVal = v.Get<int>();
+                    string stringVal = GUILayout.TextField(iVal.ToString());
+                    int cVal;
+                    if (Int32.TryParse(stringVal, out cVal) && cVal != iVal)
+                    {
+                        v.Set(cVal);
+                    }
+                    break; 
+                }
+            }
+            GUILayout.EndVertical();
+            GUILayout.EndHorizontal();
+        }
+        GUILayout.EndVertical();
     }
 
     private void SceneEditing()
@@ -485,8 +575,10 @@ class HamTimelineEditor : EditorWindow
         }
         if (GUILayout.Button("+", Style("SmallButton")))
         {
-            this.selectedScene = this.activeTimeline.AddScene("New Scene").ID;
-            Repaint();
+            ModalTextWindow.Popup("New Scene Name", (name) =>
+            {
+                this.selectedScene = this.activeTimeline.AddScene(name).ID;
+            });
         }
         GUILayout.EndHorizontal();
 
@@ -523,23 +615,16 @@ class HamTimelineEditor : EditorWindow
             Repaint();
         }
     }
-    private void LoadTimeline(string name, bool createIfNotExist = false)
+    private void LoadTimeline(string name)
     {
         ResetEditorWindow();
         string path = Path.Combine(GetTimelinePath(), name);
         if (!File.Exists(path))
         {
-            if (createIfNotExist)
-            {
-                this.activeTimeline = new HamTimeline();
-                this.activeTimeline.Name = name;
-                this.activeTimeline.DefaultInit();
-                SaveTimeline();
-            }
-            else
-            {
-                Debug.LogError("Timeline " + name + " does not exist");
-            }
+            this.activeTimeline = new HamTimeline();
+            this.activeTimeline.Name = name;
+            this.activeTimeline.DefaultInit();
+            SaveTimeline();
         }
         else
         {

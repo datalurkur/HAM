@@ -173,6 +173,22 @@ public class HamTimeline : Packable
 		return node;
 	}
 
+	public HamTimelineNode AddConsequenceNode()
+	{
+		int id = this.IDCount++;
+		HamTimelineNode node = new HamConsequenceNode(id);
+		this.Nodes[id] = node;
+		return node;
+	}
+
+	public HamTimelineVariable AddVariable(string name, VariableType type)
+	{
+		int id = this.IDCount++;
+		HamTimelineVariable v = new HamTimelineVariable(id, type, name);
+		this.Variables[id] = v;
+		return v;
+	}
+
 	public void RemoveNode(int nodeID)
 	{
 		if (nodeID == this.OriginNodeID)

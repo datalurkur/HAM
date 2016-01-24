@@ -80,7 +80,7 @@ public abstract class HamTimelineNode
 		this.ID = id;
 	}
 
-	public virtual HamDialogNode GetLastDialogNode(HamTimeline timeline)
+	public HamDialogNode GetLastDialogNode(HamTimeline timeline)
 	{
 		if (this.Type == TimelineNodeType.Dialog) { return this as HamDialogNode; }
 		for (int i = 0; i < this.PreviousNodeIDs.Count; ++i)
