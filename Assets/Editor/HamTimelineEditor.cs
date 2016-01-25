@@ -32,8 +32,8 @@ class HamTimelineEditor : EditorWindow
     // ==================================================================================
     private const int kTopBarHeight = 100;
     private const int kNodeSizeX = 250;
-    private const int kNodeSizeY = 75;
-    private const int kNodeSpacingX = 275;
+    private const int kNodeSizeY = 80;
+    private const int kNodeSpacingX = 270;
     private const int kNodeSpacingY = 100;
     private const int kTangentStrength = 25;
     // ==================================================================================
@@ -412,16 +412,15 @@ class HamTimelineEditor : EditorWindow
 
     private void OverviewEditing(Rect available)
     {
-        if (Event.current != null && Event.current.type == EventType.MouseDrag)
-        {
-            this.overviewOffset += Event.current.delta;
-        }
-
         Vector2 offset = this.overviewOffset + new Vector2(available.width / 2f, available.height / 2f);
         ComputeNodePlacement();
 
         Rect centerColumn = new Rect(0, 0, available.width, available.height);
         GUILayout.BeginArea(centerColumn, Style("box"));
+        if (Event.current != null && Event.current.type == EventType.MouseDrag && centerColumn.Contains(Event.current.mousePosition))
+        {
+            this.overviewOffset += Event.current.delta;
+        }
         List<NodeConnection> nodeConnections = new List<NodeConnection>();
         foreach (HamTimelineNode node in this.activeTimeline.Nodes.Values)
         {
@@ -454,6 +453,10 @@ class HamTimelineEditor : EditorWindow
                 break;
             }
             GUILayout.EndArea();
+            if (GUI.Button(nodeRect, GUIContent.none, Style("InvisibleButton")))
+            {
+                SetSelectedNode(node);
+            }
         }
         Handles.BeginGUI();
         for (int i = 0; i < nodeConnections.Count; ++i)
