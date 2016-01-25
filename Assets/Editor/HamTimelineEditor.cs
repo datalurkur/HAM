@@ -56,7 +56,6 @@ class HamTimelineEditor : EditorWindow
             this.EndPoint = end;
             this.Color = color;
             this.Width = 2.5f;
-
             if (Mathf.Abs(start.x - end.x) < 1f)
             {
                 this.StartTangent = start;
@@ -118,6 +117,7 @@ class HamTimelineEditor : EditorWindow
     private int selectedCharacter = HamTimeline.InvalidID;
     private int selectedScene = HamTimeline.InvalidID;
     private Vector2 overviewOffset = Vector2.zero;
+    private Dictionary<int,Vector2> overviewNodePlacement;
 
     private void ResetEditorWindow()
     {
@@ -132,28 +132,17 @@ class HamTimelineEditor : EditorWindow
     private void SetSelectedNode(HamTimelineNode node)
     {
         this.selectedNode = node.ID;
-        Vector2 position;
-        if (GetOverviewPosition(node, out position))
-        {
-            this.overviewOffset = -position;
-        }
+        this.overviewOffset = -GetOverviewPosition(node);
     }
 
-    private bool GetOverviewPosition(HamTimelineNode node, out Vector2 position)
+    private Vector2 GetOverviewPosition(HamTimelineNode node)
     {
-        if (node.OverviewPosition.HasValue)
-        {
-            position = new Vector2(
-                node.OverviewPosition.Value.x * kNodeSpacingX,
-                node.OverviewPosition.Value.y * kNodeSpacingY
-            );
-            return true;
-        }
-        else
-        {
-            position = Vector2.zero;
-            return false;
-        }
+        if (this.overviewNodePlacement == null || !this.overviewNodePlacement.ContainsKey(node.ID)) { return Vector2.zero; }
+        Vector2 placement = this.overviewNodePlacement[node.ID];
+        return new Vector2(
+            placement.x * kNodeSpacingX,
+            placement.y * kNodeSpacingY
+        );
     }
 
     private void TimelineSelection()
@@ -356,7 +345,7 @@ class HamTimelineEditor : EditorWindow
         HamTimelineNode newNode;
         if (NextNodeBlock(node, node.NextNodeID, out newNode))
         {
-            node.SetNextNode(this.activeTimeline, newNode);
+            this.activeTimeline.LinkNodes(node, newNode);
             SetSelectedNode(newNode);
             Repaint();
         }
@@ -403,7 +392,7 @@ class HamTimelineEditor : EditorWindow
 
         if (NextNodeBlock(node, d.NextNodeID, out newNode))
         {
-            node.SetNextNode(this.activeTimeline, i, newNode);
+            this.activeTimeline.LinkNodes(node, newNode, i);
             SetSelectedNode(newNode);
             Repaint();
         }
@@ -412,9 +401,15 @@ class HamTimelineEditor : EditorWindow
 
     private void OverviewEditing(Rect available)
     {
-        Vector2 offset = this.overviewOffset + new Vector2(available.width / 2f, available.height / 2f);
-        ComputeNodePlacement();
+        if (this.activeTimeline.NodeLinkageDirty)
+        {
+            Debug.Log("Regenerating node linkage"); 
+            HamNodePlacer placer = new HamNodePlacer(this.activeTimeline);
+            placer.GetNodePlacement(out this.overviewNodePlacement);
+            this.activeTimeline.NodeLinkageDirty = false;
+        }
 
+        Vector2 offset = this.overviewOffset + new Vector2(available.width / 2f, available.height / 2f);
         Rect centerColumn = new Rect(0, 0, available.width, available.height);
         GUILayout.BeginArea(centerColumn, Style("box"));
         if (Event.current != null && Event.current.type == EventType.MouseDrag && centerColumn.Contains(Event.current.mousePosition))
@@ -424,13 +419,7 @@ class HamTimelineEditor : EditorWindow
         List<NodeConnection> nodeConnections = new List<NodeConnection>();
         foreach (HamTimelineNode node in this.activeTimeline.Nodes.Values)
         {
-            Vector2 nodePosition;
-            if (!GetOverviewPosition(node, out nodePosition))
-            {
-                Debug.LogError("No overview position found for node");
-                continue;
-            }
-
+            Vector2 nodePosition = GetOverviewPosition(node);
             Rect nodeRect = new Rect(
                 nodePosition.x + offset.x - kNodeSizeX / 2f,
                 nodePosition.y + offset.y - kNodeSizeY / 2f,
@@ -455,7 +444,10 @@ class HamTimelineEditor : EditorWindow
             GUILayout.EndArea();
             if (GUI.Button(nodeRect, GUIContent.none, Style("InvisibleButton")))
             {
-                SetSelectedNode(node);
+                if (Event.current.button == 0)
+                {
+                    SetSelectedNode(node);
+                }
             }
         }
         Handles.BeginGUI();
@@ -489,26 +481,19 @@ class HamTimelineEditor : EditorWindow
         if (node.NextNodeID != HamTimeline.InvalidID)
         {
             HamTimelineNode nextNode = this.activeTimeline.Nodes[node.NextNodeID];
-            Vector2 nextNodePosition;
-            if (GetOverviewPosition(nextNode, out nextNodePosition))
+            Vector2 nextNodePosition = GetOverviewPosition(nextNode);
+            Vector2 outputPosition = nodePosition + offset + new Vector2(0f, kNodeSizeY / 2f);
+            Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
+            Color connectionColor = Color.white;
+            if (node.ID == this.selectedNode)
             {
-                Vector2 outputPosition = nodePosition + offset + new Vector2(0f, kNodeSizeY / 2f);
-                Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
-                Color connectionColor = Color.white;
-                if (node.ID == this.selectedNode)
-                {
-                    connectionColor = Color.green;
-                }
-                else if (node.NextNodeID == this.selectedNode)
-                {
-                    connectionColor = Color.red;
-                }
-                connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+                connectionColor = Color.green;
             }
-            else
+            else if (node.NextNodeID == this.selectedNode)
             {
-                Debug.LogError("No overview position found for next node");
+                connectionColor = Color.red;
             }
+            connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
         }
     }
 
@@ -540,144 +525,22 @@ class HamTimelineEditor : EditorWindow
             if (d.NextNodeID != HamTimeline.InvalidID)
             {
                 HamTimelineNode nextNode = this.activeTimeline.Nodes[d.NextNodeID];
-                Vector2 nextNodePosition;
-                if (GetOverviewPosition(nextNode, out nextNodePosition))
+                Vector2 nextNodePosition = GetOverviewPosition(nextNode);
+                Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
+                Vector2 outputPosition = new Vector2(decisionX + (decisionChunkSize / 2f), yMax);
+                Color connectionColor = Color.white;
+                if (node.ID == this.selectedNode)
                 {
-                    Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
-                    Vector2 outputPosition = new Vector2(decisionX + (decisionChunkSize / 2f), yMax);
-                    Color connectionColor = Color.white;
-                    if (node.ID == this.selectedNode)
-                    {
-                        connectionColor = Color.green;
-                    }
-                    else if (d.NextNodeID == this.selectedNode)
-                    {
-                        connectionColor = Color.red;
-                    }
-                    connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+                    connectionColor = Color.green;
                 }
-                else
+                else if (d.NextNodeID == this.selectedNode)
                 {
-                    Debug.LogError("No overview position found for next node");
+                    connectionColor = Color.red;
                 }
+                connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
             }
         }
         GUILayout.EndHorizontal();
-    }
-
-    private void ComputeNodePlacement()
-    {
-        // Place the root at the origin
-        HamTimelineNode root = this.activeTimeline.OriginNode;
-        if (!root.OverviewPosition.HasValue)
-        {
-            root.OverviewPosition = Vector2.zero;
-        }
-
-        List<int> unvisited = this.activeTimeline.Nodes.Keys.ToList();
-        List<int> descendants = new List<int>();
-
-        int maxDepth = (int)root.OverviewPosition.Value.y;
-
-        // Start at the root and propagate down
-        Queue<HamTimelineNode> traversal = new Queue<HamTimelineNode>();
-        traversal.Enqueue(root);
-        while (traversal.Count > 0 && unvisited.Count > 0)
-        {
-            HamTimelineNode n = null;
-
-            if (traversal.Count > 0)
-            {
-                // Pick the next node off the traversal queue
-                n = traversal.Dequeue();
-                if (!unvisited.Contains(n.ID)) { continue; }
-                unvisited.Remove(n.ID);
-                maxDepth = (int)Mathf.Max(maxDepth, n.OverviewPosition.Value.y);
-            }
-            else
-            {
-                // The traversal queue is empty but there are still unvisited nodes
-                // This means there are islands
-                // Find the root of the next island
-                for (int i = 0; i < unvisited.Count; ++i)
-                {
-                    HamTimelineNode island = this.activeTimeline.Nodes[unvisited[i]];
-                    if (island.PreviousNodeIDs.Count == 0)
-                    {
-                        // We found the root of an island - set its initial position and start walking the tree
-                        if (!n.OverviewPosition.HasValue)
-                        {
-                            // TODO - For now, we're placing islands linearly below the main tree
-                            // It would be super sweet if islands could be laid next to the main tree neatly,
-                            // but that would require code to guarantee that their nodes don't overlap (read: mehhhh complicated)
-                            maxDepth += 1;
-                            n.OverviewPosition = new Vector2(0, maxDepth);
-                        }
-                        n = island;
-                    }
-                }
-
-                if (n == null)
-                {
-                    Debug.LogError("Unvisited nodes exist with no island roots - the node linkage has been corrupted");
-                    return;
-                }
-            }
-
-            // Collect the descendants
-            switch (n.Type)
-            {
-                case TimelineNodeType.Dialog:
-                {
-                    HamDialogNode d = (HamDialogNode)n;
-                    if (d.NextNodeID != HamTimeline.InvalidID)
-                    {
-                        descendants.Add(d.NextNodeID);
-                    }
-                    break;
-                }
-                case TimelineNodeType.Decision:
-                {
-                    HamDecisionNode d = (HamDecisionNode)n;
-                    for (int i = 0; i < d.Decisions.Count; ++i)
-                    {
-                        if (d.Decisions[i].NextNodeID != HamTimeline.InvalidID)
-                        {
-                            descendants.Add(d.Decisions[i].NextNodeID);
-                        }
-                    }
-                    break;
-                }
-                case TimelineNodeType.Branch:
-                {
-                    break;
-                }
-                case TimelineNodeType.Consequence:
-                {
-                    break;
-                }
-            }
-            
-            // Compute the positions of the descendants relative to this node
-            float xOffset = (descendants.Count % 2 == 0) ?
-                ((descendants.Count - 1) / 2f) :
-                (float)(descendants.Count / 2);
-            for (int i = 0; i < descendants.Count; ++i)
-            {
-                HamTimelineNode m = this.activeTimeline.Nodes[descendants[i]];
-                if (!m.OverviewPosition.HasValue)
-                {
-                    m.OverviewPosition = n.OverviewPosition.Value + new Vector2(i - xOffset, 1f);
-                }
-                traversal.Enqueue(m);
-            }
-            descendants.Clear();
-        }
-
-        if (unvisited.Count > 0)
-        {
-            Debug.LogWarning("Timeline contains islands");
-        }
     }
 
     private bool NextNodeBlock(HamTimelineNode node, int nextNodeID, out HamTimelineNode newNode)

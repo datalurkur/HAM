@@ -31,9 +31,9 @@ public class HamTimeline : Packable
 		packer.Pack(this.DefaultSceneID);
 
 		packer.Pack(this.Variables.Count);
-		for (int i = 0; i < this.Variables.Count; ++i)
+		foreach (HamTimelineVariable variable in this.Variables.Values)
 		{
-			this.Variables[i].Pack(packer);
+			variable.Pack(packer);
 		}
 
 		packer.Pack(this.Scenes.Count);
@@ -101,6 +101,8 @@ public class HamTimeline : Packable
 
 	public static int InvalidID = -1;
 
+	public bool NodeLinkageDirty;
+
 	public int IDCount;
 	
 	public string Name;
@@ -119,6 +121,7 @@ public class HamTimeline : Packable
 		this.Scenes = new Dictionary<int, HamScene>();
 		this.Characters = new Dictionary<int, HamCharacter>();
 		this.Nodes = new Dictionary<int, HamTimelineNode>();
+		this.NodeLinkageDirty = true;
 	}
 
 	public HamTimelineNode OriginNode { get { return this.Nodes[this.OriginNodeID]; } }
@@ -158,6 +161,7 @@ public class HamTimeline : Packable
 		int id = this.IDCount++;
 		HamTimelineNode node = new HamDialogNode(id, sceneID, speakerID, dialog, characters);
 		this.Nodes[id] = node;
+		this.NodeLinkageDirty = true;
 		return node;
 	}
 
@@ -166,6 +170,7 @@ public class HamTimeline : Packable
 		int id = this.IDCount++;
 		HamTimelineNode node = new HamBranchNode(id);
 		this.Nodes[id] = node;
+		this.NodeLinkageDirty = true;
 		return node;
 	}
 
@@ -174,6 +179,7 @@ public class HamTimeline : Packable
 		int id = this.IDCount++;
 		HamTimelineNode node = new HamDecisionNode(id);
 		this.Nodes[id] = node;
+		this.NodeLinkageDirty = true;
 		return node;
 	}
 
@@ -182,6 +188,7 @@ public class HamTimeline : Packable
 		int id = this.IDCount++;
 		HamTimelineNode node = new HamConsequenceNode(id);
 		this.Nodes[id] = node;
+		this.NodeLinkageDirty = true;
 		return node;
 	}
 
@@ -202,5 +209,11 @@ public class HamTimeline : Packable
 		}	
 
 		// TODO - Write this function durr
+	}
+
+	public void LinkNodes(HamTimelineNode parent, HamTimelineNode child, int i = 0)
+	{
+		parent.SetNextNode(this, child, i);
+		this.NodeLinkageDirty = true;
 	}
 }
