@@ -121,6 +121,10 @@ public class HamTimeline : Packable
 		this.Nodes = new Dictionary<int, HamTimelineNode>();
 	}
 
+	public HamTimelineNode OriginNode { get { return this.Nodes[this.OriginNodeID]; } }
+	public HamScene DefaultScene { get { return this.Scenes[this.DefaultSceneID]; } }
+	public HamCharacter Narrator { get { return this.Characters[this.NarratorID]; } }
+
 	public void DefaultInit()
 	{
 		this.IDCount = 0;

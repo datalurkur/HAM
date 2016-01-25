@@ -72,6 +72,8 @@ public abstract class HamTimelineNode
 	public int ID;
 	public List<int> PreviousNodeIDs;
 
+	public Vector2? OverviewPosition;
+
 	public HamTimelineNode() { }
 	public HamTimelineNode(TimelineNodeType type, int id)
 	{
@@ -80,6 +82,8 @@ public abstract class HamTimelineNode
 		this.ID = id;
 	}
 
+	// Visualization and Editing
+	// Walk up the tree until a decision node is found
 	public HamDialogNode GetLastDialogNode(HamTimeline timeline)
 	{
 		if (this.Type == TimelineNodeType.Dialog) { return this as HamDialogNode; }
@@ -93,6 +97,16 @@ public abstract class HamTimelineNode
 		}
 		return null;
 	}
+
+	// Walk up to the parent and determine what choice / branch this node is
+	// This is used for placing the node in the overview and determining the node preview contents for previous nodes
+	public int GetDescendantIndex(HamTimeline timeline, int previousNodeIndex)
+	{
+		if (previousNodeIndex >= this.PreviousNodeIDs.Count) { return -1; }
+		int prevID = this.PreviousNodeIDs[previousNodeIndex];
+		return timeline.Nodes[prevID].GetIndexOfDescendant(this.ID);
+	}
+	public abstract int GetIndexOfDescendant(int descendantID);
 
 	public abstract void Pack(DataPacker packer);
 	public abstract void Unpack(DataUnpacker unpacker);
@@ -135,6 +149,11 @@ public class HamDialogNode : HamTimelineNode
 		node.PreviousNodeIDs.Add(this.ID);
 	}
 
+	public override int GetIndexOfDescendant(int descendantID)
+	{
+		return (descendantID == this.NextNodeID) ? 0 : -1;
+	}
+
 	public override void Pack(DataPacker packer)
 	{
 		packer.Pack(this.SceneID);
@@ -175,6 +194,11 @@ public class HamBranchNode : HamTimelineNode
 	public HamBranchNode(int id) : base(TimelineNodeType.Branch, id)
 	{
 
+	}
+
+	public override int GetIndexOfDescendant(int descendantID)
+	{
+		return -1;
 	}
 
 	public override void Pack(DataPacker packer)
@@ -263,6 +287,18 @@ public class HamDecisionNode : HamTimelineNode
 		node.PreviousNodeIDs.Add(this.ID);
 	}
 
+	public override int GetIndexOfDescendant(int descendantID)
+	{
+		for (int i = 0; i < this.Decisions.Count; ++i)
+		{
+			if (this.Decisions[i].NextNodeID == descendantID)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
 	public override void Pack(DataPacker packer)
 	{
 		packer.Pack(this.Decisions.Count);
@@ -291,6 +327,11 @@ public class HamConsequenceNode : HamTimelineNode
 	public HamConsequenceNode(int id) : base(TimelineNodeType.Consequence, id)
 	{
 
+	}
+
+	public override int GetIndexOfDescendant(int descendantID)
+	{
+		return -1;
 	}
 
 	public override void Pack(DataPacker packer)
