@@ -17,7 +17,8 @@ public enum VariableComparison
 	LessThan,
 	GreaterThan,
 	LessThanEqual,
-	GreaterThanEqual
+	GreaterThanEqual,
+	NumComparisons
 }
 
 public enum VariableOperation
@@ -26,13 +27,11 @@ public enum VariableOperation
 	Modify
 }
 
-public class HamTimelineVariable
+public class VariableValue
 {
-	public void Pack(DataPacker packer)
+	public virtual void Pack(DataPacker packer)
 	{
-		packer.Pack(this.ID);
 		packer.Pack((byte)this.Type);
-		packer.Pack(this.Name);
 		switch (this.Type)
 		{
 		case VariableType.Boolean:
@@ -44,13 +43,11 @@ public class HamTimelineVariable
 		}
 	}
 
-	public void Unpack(DataUnpacker unpacker)
+	public virtual void Unpack(DataUnpacker unpacker)
 	{
-		unpacker.Unpack(out this.ID);
 		byte type;
 		unpacker.Unpack(out type);
 		this.Type = (VariableType)type;
-		unpacker.Unpack(out this.Name);
 		switch (this.Type)
 		{
 			case VariableType.Boolean:
@@ -70,32 +67,30 @@ public class HamTimelineVariable
 		}
 	}
 
-	public int ID;
 	public VariableType Type;
-	public string Name;
-
 	private object variableValue;
 
-	public HamTimelineVariable() { }
-	public HamTimelineVariable(int id, VariableType type, string name)
+	public VariableValue() {}
+	public VariableValue(VariableType type)
 	{
-		this.ID = id;
-		this.Name = name;
-
 		SetType(type);
 	}
+	public VariableValue(VariableValue other)
+	{
+		SetType(other.Type, other);
+	}
 
-	public void SetType(VariableType type)
+	public void SetType(VariableType type, VariableValue defaultValue = null)
 	{
 		this.Type = type;
 
 		switch (this.Type)
 		{
 		case VariableType.Boolean:
-			this.variableValue = new bool();
+			this.variableValue = (defaultValue == null) ? new bool() : defaultValue.Get<bool>();
 			break;
 		case VariableType.Integer:
-			this.variableValue = new int();
+			this.variableValue = (defaultValue == null) ? new int() : defaultValue.Get<int>();
 			break;
 		}
 	}
@@ -116,5 +111,91 @@ public class HamTimelineVariable
 			throw new ArgumentException();
 		}
 		return (T)this.variableValue;
+	}
+
+	public string Label()
+	{
+		switch (this.Type)
+		{
+		case VariableType.Boolean:
+			return Get<bool>().ToString();
+		case VariableType.Integer:
+			return Get<int>().ToString();
+		default:
+			return "Unknown";
+		}
+	}
+
+	public bool Compare(VariableComparison comparison, VariableValue other)
+	{
+		if (this.Type != other.Type)
+		{
+			Debug.LogError("Can't compare different data types");
+			return false;
+		}
+
+		switch (this.Type)
+		{
+			case VariableType.Boolean:
+			{
+				switch (comparison)
+				{
+				case VariableComparison.Equal:
+					return Get<bool>() == other.Get<bool>();
+				case VariableComparison.NotEqual:
+					return Get<bool>() != other.Get<bool>();
+				}
+				break;	
+			}
+			case VariableType.Integer:
+			{
+				switch (comparison)
+				{
+				case VariableComparison.Equal:
+					return Get<int>() == other.Get<int>();
+				case VariableComparison.NotEqual:
+					return Get<int>() != other.Get<int>();
+				case VariableComparison.LessThan:
+					return Get<int>() <  other.Get<int>();
+				case VariableComparison.GreaterThan:
+					return Get<int>() >  other.Get<int>();
+				case VariableComparison.LessThanEqual:
+					return Get<int>() <= other.Get<int>();
+				case VariableComparison.GreaterThanEqual:
+					return Get<int>() >= other.Get<int>();
+				}
+				break;			
+			}
+		}
+
+		Debug.LogError("Failed to compare variables");
+		return false;
+	}
+}
+
+public class HamTimelineVariable : VariableValue
+{
+	public override void Pack(DataPacker packer)
+	{
+		packer.Pack(this.ID);
+		base.Pack(packer);
+		packer.Pack(this.Name);
+	}
+
+	public override void Unpack(DataUnpacker unpacker)
+	{
+		unpacker.Unpack(out this.ID);
+		base.Unpack(unpacker);
+		unpacker.Unpack(out this.Name);
+	}
+
+	public int ID;
+	public string Name;
+
+	public HamTimelineVariable() { }
+	public HamTimelineVariable(int id, VariableType type, string name) : base(type)
+	{
+		this.ID = id;
+		this.Name = name;
 	}
 }
