@@ -472,26 +472,25 @@ class HamTimelineEditor : EditorWindow
         // Value Setting
         if (p.VariableID != HamTimeline.InvalidID)
         {
-            HamTimelineVariable variable = this.activeTimeline.Variables[p.VariableID];
-            switch (variable.Type)
+            switch (p.CompareValue.Type)
             {
                 case VariableType.Boolean:
                 {
-                    bool bVal = variable.Get<bool>();
+                    bool bVal = p.CompareValue.Get<bool>();
                     if (GUILayout.Button(bVal.ToString()))
                     {
-                        variable.Set(!bVal);
+                        p.CompareValue.Set(!bVal);
                     }
                     break;
                 }
                 case VariableType.Integer:
                 {
-                    int iVal = variable.Get<int>();
+                    int iVal = p.CompareValue.Get<int>();
                     string stringVal = GUILayout.TextField(iVal.ToString());
                     int cVal;
                     if (Int32.TryParse(stringVal, out cVal) && cVal != iVal)
                     {
-                        variable.Set(cVal);
+                        p.CompareValue.Set(cVal);
                     }
                     break; 
                 }
