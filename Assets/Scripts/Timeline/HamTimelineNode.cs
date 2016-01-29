@@ -478,11 +478,18 @@ public class HamDecisionNode : HamTimelineNode
 public class HamConsequenceNode : HamTimelineNode
 {
 	public int NextNodeID;
+	public List<HamOperation> Operations;
 
 	public HamConsequenceNode() { }
 	public HamConsequenceNode(int id) : base(TimelineNodeType.Consequence, id)
 	{
 		this.NextNodeID = HamTimeline.InvalidID;
+		this.Operations = new List<HamOperation>();
+	}
+
+	public void AddOperation()
+	{
+		this.Operations.Add(new HamOperation());
 	}
 
 	public override int GetIndexOfDescendant(int descendantID)
@@ -521,9 +528,23 @@ public class HamConsequenceNode : HamTimelineNode
 	public override void Pack(DataPacker packer)
 	{
 		packer.Pack(this.NextNodeID);
+		packer.Pack(this.Operations.Count);
+		for (int i = 0; i < this.Operations.Count; ++i)
+		{
+			this.Operations[i].Pack(packer);
+		}
 	}
 	public override void Unpack(DataUnpacker unpacker)
 	{
 		unpacker.Unpack(out this.NextNodeID);
+		int size;
+		unpacker.Unpack(out size);
+		this.Operations = new List<HamOperation>();
+		for (int i = 0; i < size; ++i)
+		{
+			HamOperation operation = new HamOperation();
+			operation.Unpack(unpacker);
+			this.Operations.Add(operation);
+		}
 	}
 }

@@ -24,7 +24,8 @@ public enum VariableComparison
 public enum VariableOperation
 {
 	Set = 0,
-	Modify
+	Modify,
+	NumOperations
 }
 
 public class VariableValue
