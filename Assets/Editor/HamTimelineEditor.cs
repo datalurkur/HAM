@@ -35,7 +35,7 @@ class HamTimelineEditor : EditorWindow
     // Consts
     // ==================================================================================
     private const int kTopBarHeight = 95;
-    private const int kStatusBarHeight = 30;
+    private const int kStatusBarHeight = 25;
     private const int kSideBarWidth = 350;
     private const int kNodeSizeX = 250;
     private const int kNodeSizeY = 80;
@@ -85,14 +85,14 @@ class HamTimelineEditor : EditorWindow
     private class SelectionContext
     {
         public HamTimelineNode Node;
+        public SelectionMode Mode;
         private int DescendantIndex;
-        private SelectionMode Mode;
 
         public SelectionContext()
         {
             this.Node = null;
-            this.DescendantIndex = 0;
             this.Mode = SelectionMode.SelectNode;
+            this.DescendantIndex = 0;
         }
 
         public bool NodeSelected(int id)
@@ -260,7 +260,17 @@ class HamTimelineEditor : EditorWindow
         GUILayout.EndArea();
 
         GUILayout.BeginArea(statusbar, Style("box"));
-        GUILayout.Label("Status Bar");
+        string statusLabel = "";
+        switch (this.selection.Mode)
+        {
+        case SelectionMode.SelectNode:
+            statusLabel = "Node Selection";
+            break;
+        case SelectionMode.LinkNodes:
+            statusLabel = "Select a Node To Link";
+            break;
+        }
+        GUILayout.Label(statusLabel);
         GUILayout.EndArea();
 
         // Render the controls for saving and loading last, so that doing a save or load in the middle of a render doesn't throw exceptions
@@ -967,6 +977,27 @@ class HamTimelineEditor : EditorWindow
 
         GUILayout.EndVertical();
 
+        if (node.NextNodeID != HamTimeline.InvalidID)
+        {
+#if LINKAGE_DEBUG
+            Debug.Log("Node " + node.ID + " transitions to " + node.NextNodeID);
+#endif
+            HamTimelineNode nextNode = this.activeTimeline.Nodes[node.NextNodeID];
+            Vector2 nextNodePosition = GetOverviewPosition(nextNode);
+            Vector2 outputPosition = nodePosition + offset + new Vector2(0f, kNodeSizeY / 2f);
+            Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
+            Color connectionColor = Color.white;
+            if (this.selection.NodeSelected(node.ID))
+            {
+                connectionColor = Color.green;
+            }
+            else if (this.selection.NodeSelected(node.NextNodeID))
+            {
+                connectionColor = Color.red;
+            }
+            this.connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+        }
+        
         if (GUI.Button(GUILayoutUtility.GetLastRect(), GUIContent.none, Style("InvisibleButton")))
         {
             if (Event.current.button == 0)

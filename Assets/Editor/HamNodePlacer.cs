@@ -23,10 +23,14 @@ public class HamNodePlacer
 			if (this.Parent != null)
 			{
 				this.Parent.Children.Add(this);
+				this.Depth = this.Parent.Depth + 1;
 			}
-			this.Depth = this.Parent == null ? 0 : this.Parent.Depth + 1;
-			this.Width = 0;
+			else
+			{
+				this.Depth = 0;
+			}
 			this.Children = new List<PlacementNode>();
+			this.Width = 0;
 			this.WidthOffset = 0;
 		}
 
@@ -41,12 +45,27 @@ public class HamNodePlacer
 				}
 				this.Parent = parent;
 				this.Parent.Children.Add(this);
-				this.Depth = this.Parent.Depth + 1;
+				RefreshDepth();
 				return true;
 			}
 			else
 			{
 				return false;
+			}
+		}
+
+		public void RefreshDepth()
+		{
+			Queue<PlacementNode> depthQueue = new Queue<PlacementNode>();
+			depthQueue.Enqueue(this);
+			while (depthQueue.Count > 0)
+			{
+				PlacementNode subNode = depthQueue.Dequeue();
+				subNode.Depth = subNode.Parent.Depth + 1;
+				for (int i = 0; i < subNode.Children.Count; ++i)
+				{
+					depthQueue.Enqueue(subNode.Children[i]);
+				}
 			}
 		}
 
