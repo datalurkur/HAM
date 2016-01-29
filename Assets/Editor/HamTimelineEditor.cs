@@ -169,6 +169,7 @@ class HamTimelineEditor : EditorWindow
     private int selectedScene = HamTimeline.InvalidID;
     private Vector2 overviewOffset = Vector2.zero;
     private Dictionary<int,Vector2> overviewNodePlacement;
+    private List<NodeConnection> connections = new List<NodeConnection>();
 
     private void ResetEditorWindow()
     {
@@ -644,7 +645,15 @@ class HamTimelineEditor : EditorWindow
         Rect centerColumn = new Rect(0, 0, available.width, available.height);
         GUILayout.BeginArea(centerColumn, Style("box"));
 
-        List<NodeConnection> nodeConnections = new List<NodeConnection>();
+        Handles.BeginGUI();
+        for (int i = 0; i < this.connections.Count; ++i)
+        {
+            this.connections[i].Render();
+        }
+        Handles.EndGUI();
+        GUILayout.EndArea();
+        this.connections.Clear();
+
         foreach (HamTimelineNode node in this.activeTimeline.Nodes.Values)
         {
             Vector2 nodePosition = GetOverviewPosition(node);
@@ -662,28 +671,21 @@ class HamTimelineEditor : EditorWindow
             switch (node.Type)
             {
             case TimelineNodeType.Dialog:
-                RenderDialogNode(nodePosition, offset, (HamDialogNode)node, nodeConnections);
+                RenderDialogNode(nodePosition, offset, (HamDialogNode)node);
                 break;
             case TimelineNodeType.Decision:
-                RenderDecisionNode(nodePosition, offset, (HamDecisionNode)node, nodeConnections);
+                RenderDecisionNode(nodePosition, offset, (HamDecisionNode)node);
                 break;
             case TimelineNodeType.Branch:
-                RenderBranchNode(nodePosition, offset, (HamBranchNode)node, nodeConnections);
+                RenderBranchNode(nodePosition, offset, (HamBranchNode)node);
                 break;
             case TimelineNodeType.Consequence:
-                RenderConsequenceNode(nodePosition, offset, (HamConsequenceNode)node, nodeConnections);
+                RenderConsequenceNode(nodePosition, offset, (HamConsequenceNode)node);
                 break;
             }
             GUILayout.EndArea();
 
         }
-        Handles.BeginGUI();
-        for (int i = 0; i < nodeConnections.Count; ++i)
-        {
-            nodeConnections[i].Render();
-        }
-        Handles.EndGUI();
-        GUILayout.EndArea();
     }
 
     private void RightClickNodeContext(HamTimelineNode node, int descendantIndex)
@@ -744,7 +746,7 @@ class HamTimelineEditor : EditorWindow
         menu.ShowAsContext();
     }
 
-    private void RenderDialogNode(Vector2 nodePosition, Vector2 offset, HamDialogNode node, List<NodeConnection> connections)
+    private void RenderDialogNode(Vector2 nodePosition, Vector2 offset, HamDialogNode node)
     {
         GUILayout.BeginVertical();
 
@@ -783,7 +785,7 @@ class HamTimelineEditor : EditorWindow
             {
                 connectionColor = Color.red;
             }
-            connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+            this.connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
         }
 
         GUILayout.EndVertical();
@@ -800,7 +802,7 @@ class HamTimelineEditor : EditorWindow
         }
     }
 
-    private void RenderDecisionNode(Vector2 nodePosition, Vector2 offset, HamDecisionNode node, List<NodeConnection> connections)
+    private void RenderDecisionNode(Vector2 nodePosition, Vector2 offset, HamDecisionNode node)
     {
         // Determine dimensions of various components
         float decisionChunkSize = kNodeSizeX / node.Decisions.Count;
@@ -862,13 +864,13 @@ class HamTimelineEditor : EditorWindow
                 {
                     connectionColor = Color.red;
                 }
-                connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+                this.connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
             }
         }
         GUILayout.EndHorizontal();
     }
 
-    private void RenderBranchNode(Vector2 nodePosition, Vector2 offset, HamBranchNode node, List<NodeConnection> connections)
+    private void RenderBranchNode(Vector2 nodePosition, Vector2 offset, HamBranchNode node)
     {
         // Determine dimensions of various components
         float branchChunkSize = kNodeSizeX / (node.Predicates.Count + 1);
@@ -939,13 +941,13 @@ class HamTimelineEditor : EditorWindow
                 {
                     connectionColor = Color.red;
                 }
-                connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+                this.connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
             }
         }
         GUILayout.EndHorizontal();
     }
 
-    private void RenderConsequenceNode(Vector2 nodePosition, Vector2 offset, HamConsequenceNode node, List<NodeConnection> connections)
+    private void RenderConsequenceNode(Vector2 nodePosition, Vector2 offset, HamConsequenceNode node)
     {
         // Node title
         GUILayout.BeginVertical();

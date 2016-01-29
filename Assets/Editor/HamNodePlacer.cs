@@ -20,10 +20,34 @@ public class HamNodePlacer
 		{
 			this.Node = node;
 			this.Parent = parent;
+			if (this.Parent != null)
+			{
+				this.Parent.Children.Add(this);
+			}
 			this.Depth = this.Parent == null ? 0 : this.Parent.Depth + 1;
 			this.Width = 0;
 			this.Children = new List<PlacementNode>();
 			this.WidthOffset = 0;
+		}
+
+		public bool SetParent(PlacementNode parent)
+		{
+			if (this.Parent != null && this.Parent.Depth < parent.Depth)
+			{
+				this.Parent.Children.Remove(this);
+				if (this.Parent.Children.Count == 0)
+				{
+					this.Parent.Width = 0;
+				}
+				this.Parent = parent;
+				this.Parent.Children.Add(this);
+				this.Depth = this.Parent.Depth + 1;
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 
 		public string Describe()
@@ -40,10 +64,12 @@ public class HamNodePlacer
 	}
 
 	private HamTimeline timeline;
+	private bool attemptReparenting;
 
-	public HamNodePlacer(HamTimeline timeline)
+	public HamNodePlacer(HamTimeline timeline, bool attemptReparenting = true)
 	{
 		this.timeline = timeline;
+		this.attemptReparenting = attemptReparenting;
 	}
 
 	public void GetNodePlacement(out Dictionary<int,Vector2> places)
@@ -51,12 +77,15 @@ public class HamNodePlacer
 		places = new Dictionary<int,Vector2>();
 
 		HashSet<int> visited = new HashSet<int>();
+		Dictionary<int, PlacementNode> allNodes = new Dictionary<int, PlacementNode>();
 
 		// Iterate through tree, one row of depth at a time, developing a parentage relationship as we go
 		// The goal here is to find 0 or 1 unique parent for each node to determine its final position in the tree
 		// There will still be odd linkages, but we'll ignore those in favor of generally looking good
-		Queue<PlacementNode> unprocessed = new Queue<PlacementNode>();
 		PlacementNode root = new PlacementNode(this.timeline.OriginNode, null);
+		allNodes[root.Node.ID] = root;
+
+		Queue<PlacementNode> unprocessed = new Queue<PlacementNode>();
 		unprocessed.Enqueue(root);
 		visited.Add(this.timeline.OriginNode.ID);
 
@@ -72,12 +101,16 @@ public class HamNodePlacer
 				if (!visited.Contains(dids[j]))
 				{
 					PlacementNode child = new PlacementNode(this.timeline.Nodes[dids[j]], current);
+					allNodes[child.Node.ID] = child;
 #if PLACER_DEBUG
 					Debug.Log("Parenting " + child.Describe() + " under " + current.Describe());
 #endif
 					unprocessed.Enqueue(child);
-					current.Children.Add(child);
 					visited.Add(dids[j]);
+					hadChildren = true;
+				}
+				else if(this.attemptReparenting && allNodes[dids[j]].SetParent(current))
+				{
 					hadChildren = true;
 				}
 			}
