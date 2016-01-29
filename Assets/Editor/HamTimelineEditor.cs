@@ -20,21 +20,27 @@ class HamTimelineEditor : EditorWindow
     // ==================================================================================
     private enum EditingTab
     {
-        SingleNodeEditing,
-        OverviewEditing,
+        NodeEditing,
         CharacterEditing,
         SceneEditing,
         VariableEditing
+    }
+    public enum SelectionMode
+    {
+        SelectNode,
+        LinkNodes
     }
     // ==================================================================================
 
     // Consts
     // ==================================================================================
-    private const int kTopBarHeight = 100;
+    private const int kTopBarHeight = 95;
+    private const int kStatusBarHeight = 30;
+    private const int kSideBarWidth = 350;
     private const int kNodeSizeX = 250;
     private const int kNodeSizeY = 80;
     private const int kNodeSpacingX = 270;
-    private const int kNodeSpacingY = 100;
+    private const int kNodeSpacingY = 120;
     private const int kTangentStrength = 25;
     // ==================================================================================
 
@@ -75,6 +81,49 @@ class HamTimelineEditor : EditorWindow
             Handles.DrawBezier(this.StartPoint, this.EndPoint, this.StartTangent, this.EndTangent, this.Color, null, this.Width); 
         }
     }
+
+    private class SelectionContext
+    {
+        public HamTimelineNode Node;
+        private int DescendantIndex;
+        private SelectionMode Mode;
+
+        public SelectionContext()
+        {
+            this.Node = null;
+            this.DescendantIndex = 0;
+            this.Mode = SelectionMode.SelectNode;
+        }
+
+        public bool NodeSelected(int id)
+        {
+            return (this.Node != null && this.Node.ID == id);
+        }
+
+        public void ClickedNode(HamTimeline timeline, HamTimelineNode node)
+        {
+            switch (this.Mode)
+            {
+            case SelectionMode.SelectNode:
+                this.Node = node;
+                break;
+            case SelectionMode.LinkNodes:
+                if (this.Node != node)
+                {
+                    timeline.LinkNodes(this.Node, node, this.DescendantIndex);
+                }
+                this.Mode = SelectionMode.SelectNode;
+                break;
+            }
+        }
+
+        public void BeginLinking(HamTimelineNode node, int index = 0)
+        {
+            this.Node = node;
+            this.DescendantIndex = index;
+            this.Mode = SelectionMode.LinkNodes;
+        }
+    }
     // ==================================================================================
 
     // Style helpers
@@ -109,11 +158,13 @@ class HamTimelineEditor : EditorWindow
         else { TimelineEditing(); }
         //GUILayout.EndArea();
         GUI.skin = null;
+
+        HandleTimelineEvents();
     }
 
     private HamTimeline activeTimeline;
-    private EditingTab activeEditingTab = EditingTab.SingleNodeEditing;
-    private int selectedNode = HamTimeline.InvalidID;
+    private EditingTab activeEditingTab = EditingTab.NodeEditing;
+    private SelectionContext selection = new SelectionContext();
     private int selectedCharacter = HamTimeline.InvalidID;
     private int selectedScene = HamTimeline.InvalidID;
     private Vector2 overviewOffset = Vector2.zero;
@@ -122,17 +173,10 @@ class HamTimelineEditor : EditorWindow
     private void ResetEditorWindow()
     {
         this.activeTimeline = null;
-        this.activeEditingTab = EditingTab.SingleNodeEditing;
-        this.selectedNode = HamTimeline.InvalidID;
+        this.activeEditingTab = EditingTab.NodeEditing;
         this.selectedCharacter = HamTimeline.InvalidID;
         this.selectedScene = HamTimeline.InvalidID;
         this.overviewOffset = Vector2.zero;
-    }
-
-    private void SetSelectedNode(HamTimelineNode node)
-    {
-        this.selectedNode = node.ID;
-        this.overviewOffset = -GetOverviewPosition(node);
     }
 
     private Vector2 GetOverviewPosition(HamTimelineNode node)
@@ -143,6 +187,21 @@ class HamTimelineEditor : EditorWindow
             placement.x * kNodeSpacingX,
             placement.y * kNodeSpacingY
         );
+    }
+
+    private void HandleTimelineEvents()
+    {
+        if (Event.current == null) { return; }
+        switch (Event.current.type)
+        {
+        case EventType.MouseDrag:
+            this.overviewOffset += Event.current.delta;
+            Repaint();
+            break;
+        case EventType.MouseMove:
+            Repaint();
+            break;
+        }
     }
 
     private void TimelineSelection()
@@ -170,28 +229,18 @@ class HamTimelineEditor : EditorWindow
 
     private void TimelineEditing()
     {
-        if (this.activeEditingTab == EditingTab.OverviewEditing)
-        {
-            this.wantsMouseMove = true;
-            if (Event.current != null && Event.current.type == EventType.MouseMove)
-            {
-                Repaint();
-            }
-        }
-        else
-        {
-            this.wantsMouseMove = false;
-        }
+        this.wantsMouseMove = true;
 
-        Rect available = new Rect(0, kTopBarHeight, position.width, position.height - kTopBarHeight);
-        GUILayout.BeginArea(available);
+        Rect topbar = new Rect(kSideBarWidth, 0, position.width - kSideBarWidth, kTopBarHeight);
+        Rect statusbar = new Rect(kSideBarWidth, position.height - kStatusBarHeight, position.width - kSideBarWidth, kStatusBarHeight);
+        Rect sidebar = new Rect(0, 0, kSideBarWidth, position.height);
+        Rect overview = new Rect(kSideBarWidth, kTopBarHeight, position.width - kSideBarWidth, position.height - kTopBarHeight - kStatusBarHeight);
+
+        GUILayout.BeginArea(sidebar, Style("Box"));
         switch (this.activeEditingTab)
         {
-        case EditingTab.SingleNodeEditing:
-            SingleNodeEditing();
-            break;
-        case EditingTab.OverviewEditing:
-            OverviewEditing(available);
+        case EditingTab.NodeEditing:
+            NodeEditing();
             break;
         case EditingTab.CharacterEditing:
             CharacterEditing();
@@ -205,60 +254,60 @@ class HamTimelineEditor : EditorWindow
         }
         GUILayout.EndArea();
 
+        GUILayout.BeginArea(overview);
+        RenderOverview(overview);
+        GUILayout.EndArea();
+
+        GUILayout.BeginArea(statusbar, Style("box"));
+        GUILayout.Label("Status Bar");
+        GUILayout.EndArea();
+
         // Render the controls for saving and loading last, so that doing a save or load in the middle of a render doesn't throw exceptions
+        GUILayout.BeginArea(topbar, Style("Box"));
         RenderTopBar();
+        GUILayout.EndArea();
     }
     
     private void RenderTopBar()
     {
-        GUILayout.BeginArea(new Rect(0, 0, position.width, kTopBarHeight));
         GUILayout.Label("Editing " + this.activeTimeline.Name, Style("Title"));
 
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Save")) { SaveTimeline(); }
         if (GUILayout.Button("Save and Close")) { SaveTimeline(true); }
         GUILayout.EndHorizontal();
-        GUILayout.Space(8);
 
         GUILayout.BeginHorizontal();
-        GUI.enabled = (this.activeEditingTab != EditingTab.SingleNodeEditing);
-        if (GUILayout.Button("Single Node Editing")) { this.activeEditingTab = EditingTab.SingleNodeEditing; }
-        GUI.enabled = (this.activeEditingTab != EditingTab.OverviewEditing);
-        if (GUILayout.Button("Overview Editing")) { this.activeEditingTab = EditingTab.OverviewEditing; }
+        GUI.enabled = (this.activeEditingTab != EditingTab.NodeEditing);
+        if (GUILayout.Button("Node")) { this.activeEditingTab = EditingTab.NodeEditing; }
         GUI.enabled = (this.activeEditingTab != EditingTab.CharacterEditing);
-        if (GUILayout.Button("Character Editing")) { this.activeEditingTab = EditingTab.CharacterEditing; }
+        if (GUILayout.Button("Character")) { this.activeEditingTab = EditingTab.CharacterEditing; }
         GUI.enabled = (this.activeEditingTab != EditingTab.VariableEditing);
-        if (GUILayout.Button("Variable Editing")) { this.activeEditingTab = EditingTab.VariableEditing; }
+        if (GUILayout.Button("Variable")) { this.activeEditingTab = EditingTab.VariableEditing; }
         GUI.enabled = (this.activeEditingTab != EditingTab.SceneEditing);
-        if (GUILayout.Button("Scene Editing")) { this.activeEditingTab = EditingTab.SceneEditing; }
+        if (GUILayout.Button("Scene")) { this.activeEditingTab = EditingTab.SceneEditing; }
         GUI.enabled = true;
         GUILayout.EndHorizontal();
-        GUILayout.Space(8);
-        GUILayout.EndArea();
     }
 
-    private void SingleNodeEditing()
+    private void NodeEditing()
     {
-        HamTimelineNode node;
-        if (this.selectedNode == HamTimeline.InvalidID)
+        if (this.selection.Node == null)
         {
-            node = this.activeTimeline.OriginNode;
-            SetSelectedNode(node);
+            GUILayout.Label("No Node Selected");
+            return;
         }
-        else
-        {
-            node = this.activeTimeline.Nodes[this.selectedNode];
-        }
-        switch (node.Type)
+
+        switch (this.selection.Node.Type)
         {
         case TimelineNodeType.Dialog:
-            DialogNodeEditing(node as HamDialogNode);
+            DialogNodeEditing(this.selection.Node as HamDialogNode);
             break;
         case TimelineNodeType.Branch:
-            BranchNodeEditing(node as HamBranchNode);
+            BranchNodeEditing(this.selection.Node as HamBranchNode);
             break;
         case TimelineNodeType.Decision:
-            DecisionNodeEditing(node as HamDecisionNode);
+            DecisionNodeEditing(this.selection.Node as HamDecisionNode);
             break;
         }
     }
@@ -266,8 +315,6 @@ class HamTimelineEditor : EditorWindow
     private void DialogNodeEditing(HamDialogNode node)
     {
         GUILayout.Label("Dialog Node", Style("SubTitle"));
-
-        PreviousNodesRow(node);
 
         // Node Editing
         GUILayout.BeginVertical(Style("box"));
@@ -340,15 +387,6 @@ class HamTimelineEditor : EditorWindow
             menu.ShowAsContext();
         }
         GUILayout.EndVertical();
-        GUILayout.Space(4);
-
-        HamTimelineNode newNode;
-        if (NextNodeBlock(node, node.NextNodeID, out newNode))
-        {
-            this.activeTimeline.LinkNodes(node, newNode);
-            SetSelectedNode(newNode);
-            Repaint();
-        }
     }
 
     private void BranchNodeEditing(HamBranchNode node)
@@ -360,27 +398,24 @@ class HamTimelineEditor : EditorWindow
     {
         GUILayout.Label("Decision Node", Style("SubTitle"));
 
-        PreviousNodesRow(node);
-
-        GUILayout.BeginHorizontal();
+        GUILayout.BeginVertical();
         for (int i = 0; i < node.Decisions.Count; ++i)
         {
-            SingleDecisionNodeEditing(node, i);
+            DecisionEditing(node, i);
         }
-        GUILayout.BeginVertical(Style("box"));
+        GUILayout.BeginHorizontal(Style("box"));
         if (GUILayout.Button("Add Decision", Style("FlexButton")))
         {
             node.AddDecision("New Decision", false);
             Repaint();
         }
-        GUILayout.EndVertical();
         GUILayout.EndHorizontal();
+        GUILayout.EndVertical();
     }
 
-    private void SingleDecisionNodeEditing(HamDecisionNode node, int i)
+    private void DecisionEditing(HamDecisionNode node, int i)
     {
         HamDecisionNode.Decision d = node.Decisions[i];
-        HamTimelineNode newNode;
         GUILayout.BeginVertical();
 
         GUILayout.BeginVertical(Style("box"));
@@ -390,20 +425,13 @@ class HamTimelineEditor : EditorWindow
         d.IsDialog = GUILayout.Toggle(d.IsDialog, "Is Dialog");
         GUILayout.EndVertical();
 
-        if (NextNodeBlock(node, d.NextNodeID, out newNode))
-        {
-            this.activeTimeline.LinkNodes(node, newNode, i);
-            SetSelectedNode(newNode);
-            Repaint();
-        }
         GUILayout.EndVertical(); 
     }
 
-    private void OverviewEditing(Rect available)
+    private void RenderOverview(Rect available)
     {
         if (this.activeTimeline.NodeLinkageDirty)
         {
-            Debug.Log("Regenerating node linkage"); 
             HamNodePlacer placer = new HamNodePlacer(this.activeTimeline);
             placer.GetNodePlacement(out this.overviewNodePlacement);
             this.activeTimeline.NodeLinkageDirty = false;
@@ -412,10 +440,7 @@ class HamTimelineEditor : EditorWindow
         Vector2 offset = this.overviewOffset + new Vector2(available.width / 2f, available.height / 2f);
         Rect centerColumn = new Rect(0, 0, available.width, available.height);
         GUILayout.BeginArea(centerColumn, Style("box"));
-        if (Event.current != null && Event.current.type == EventType.MouseDrag && centerColumn.Contains(Event.current.mousePosition))
-        {
-            this.overviewOffset += Event.current.delta;
-        }
+
         List<NodeConnection> nodeConnections = new List<NodeConnection>();
         foreach (HamTimelineNode node in this.activeTimeline.Nodes.Values)
         {
@@ -442,13 +467,7 @@ class HamTimelineEditor : EditorWindow
                 break;
             }
             GUILayout.EndArea();
-            if (GUI.Button(nodeRect, GUIContent.none, Style("InvisibleButton")))
-            {
-                if (Event.current.button == 0)
-                {
-                    SetSelectedNode(node);
-                }
-            }
+
         }
         Handles.BeginGUI();
         for (int i = 0; i < nodeConnections.Count; ++i)
@@ -459,8 +478,48 @@ class HamTimelineEditor : EditorWindow
         GUILayout.EndArea();
     }
 
+    private void RightClickNodeContext(HamTimelineNode node, int descendantIndex)
+    {
+        GenericMenu menu = new GenericMenu();
+        menu.AddItem(
+            new GUIContent("Link To Selection"),
+            false,
+            (a) => { this.selection.BeginLinking(node, descendantIndex); },
+            null
+        );
+        menu.AddItem(
+            new GUIContent("Link To New Dialog"),
+            false,
+            (a) =>
+            {
+                HamDialogNode lastDialog = node.GetLastDialogNode(this.activeTimeline);
+                HamTimelineNode newNode = this.activeTimeline.AddDialogNode(
+                    lastDialog != null ? lastDialog.SceneID : this.activeTimeline.DefaultSceneID,
+                    lastDialog != null ? lastDialog.SpeakerID : this.activeTimeline.NarratorID,
+                    "",
+                    lastDialog != null ? lastDialog.CharacterIDs : null
+                );
+                this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
+            },
+            null
+        );
+        menu.AddItem(
+            new GUIContent("Link To New Decision"),
+            false,
+            (a) =>
+            {
+                HamTimelineNode newNode = this.activeTimeline.AddDecisionNode();
+                this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
+            },
+            null
+        );
+        menu.ShowAsContext();
+    }
+
     private void RenderDialogNode(Vector2 nodePosition, Vector2 offset, HamDialogNode node, List<NodeConnection> connections)
     {
+        GUILayout.BeginVertical();
+
         GUILayout.BeginHorizontal(Style("DialogNode"));
         GUILayout.Label("Dialog");
         GUILayout.EndHorizontal();
@@ -485,15 +544,28 @@ class HamTimelineEditor : EditorWindow
             Vector2 outputPosition = nodePosition + offset + new Vector2(0f, kNodeSizeY / 2f);
             Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
             Color connectionColor = Color.white;
-            if (node.ID == this.selectedNode)
+            if (this.selection.NodeSelected(node.ID))
             {
                 connectionColor = Color.green;
             }
-            else if (node.NextNodeID == this.selectedNode)
+            else if (this.selection.NodeSelected(node.NextNodeID))
             {
                 connectionColor = Color.red;
             }
             connections.Add(new NodeConnection(outputPosition, inputPosition, connectionColor));
+        }
+
+        GUILayout.EndVertical();
+        if (GUI.Button(GUILayoutUtility.GetLastRect(), GUIContent.none, Style("InvisibleButton")))
+        {
+            if (Event.current.button == 0)
+            {
+                this.selection.ClickedNode(this.activeTimeline, node);
+            }
+            else if (Event.current.button == 1)
+            {
+                RightClickNodeContext(node, 0);
+            }
         }
     }
 
@@ -511,6 +583,13 @@ class HamTimelineEditor : EditorWindow
         GUILayout.BeginHorizontal(Style("DecisionNode"));
         GUILayout.Label("Decision");
         GUILayout.EndHorizontal();
+        if (GUI.Button(GUILayoutUtility.GetLastRect(), GUIContent.none, Style("InvisibleButton")))
+        {
+            if (Event.current.button == 0)
+            {
+                this.selection.ClickedNode(this.activeTimeline, node);
+            }
+        }
 
         // Decision area
         GUILayout.BeginHorizontal();
@@ -522,6 +601,18 @@ class HamTimelineEditor : EditorWindow
             GUILayout.Label(d.IsDialog ? String.Format("\"{0}\"", d.DecisionText) : d.DecisionText);
             GUILayout.EndVertical();
 
+            if (GUI.Button(GUILayoutUtility.GetLastRect(), GUIContent.none, Style("InvisibleButton")))
+            {
+                if (Event.current.button == 0)
+                {
+                    this.selection.ClickedNode(this.activeTimeline, node);
+                }
+                else if (Event.current.button == 1)
+                {
+                    RightClickNodeContext(node, i);
+                }
+            }
+
             if (d.NextNodeID != HamTimeline.InvalidID)
             {
                 HamTimelineNode nextNode = this.activeTimeline.Nodes[d.NextNodeID];
@@ -529,11 +620,11 @@ class HamTimelineEditor : EditorWindow
                 Vector2 inputPosition  = nextNodePosition + offset - new Vector2(0f, kNodeSizeY / 2f);
                 Vector2 outputPosition = new Vector2(decisionX + (decisionChunkSize / 2f), yMax);
                 Color connectionColor = Color.white;
-                if (node.ID == this.selectedNode)
+                if (this.selection.NodeSelected(node.ID))
                 {
                     connectionColor = Color.green;
                 }
-                else if (d.NextNodeID == this.selectedNode)
+                else if (this.selection.NodeSelected(d.NextNodeID))
                 {
                     connectionColor = Color.red;
                 }
@@ -541,129 +632,6 @@ class HamTimelineEditor : EditorWindow
             }
         }
         GUILayout.EndHorizontal();
-    }
-
-    private bool NextNodeBlock(HamTimelineNode node, int nextNodeID, out HamTimelineNode newNode)
-    {
-        newNode = null;
-
-        // Modification of Next Node
-        GUILayout.BeginHorizontal(Style("box"));
-        if (GUILayout.Button("New Dialog Node", Style("FlexButton")))
-        {
-            HamDialogNode last = node.GetLastDialogNode(this.activeTimeline);
-            if (last != null)
-            {
-                newNode = this.activeTimeline.AddDialogNode(last.SceneID, last.SpeakerID, "New Dialog", last.CharacterIDs);
-            }
-            else
-            {
-                newNode = this.activeTimeline.AddDialogNode(this.activeTimeline.DefaultSceneID, this.activeTimeline.NarratorID, "New Dialog");
-            }
-            return true;
-        }
-        if (GUILayout.Button("New Decision Node", Style("FlexButton")))
-        {
-            newNode = this.activeTimeline.AddDecisionNode();
-            return true;
-        }
-        /*
-        if (GUILayout.Button("New Branch Node", Style("FlexButton")))
-        {
-
-        }
-        if (GUILayout.Button("New Consequence Node", Style("FlexButton")))
-        {
-
-        }
-        */
-        GUILayout.EndHorizontal();
-
-        // Preview of Next Node
-        GUILayout.BeginVertical(Style("box"));
-        GUILayout.Label("Next Node");
-        if (nextNodeID != HamTimeline.InvalidID)
-        {
-            HamTimelineNode nextNode = this.activeTimeline.Nodes[nextNodeID];
-            NodeButtonPreview(nextNode, null);
-        }
-        else
-        {
-            GUILayout.Label("No Next Node Set");
-        }
-        GUILayout.EndVertical();
-
-        return false;
-    }
-
-    private void PreviousNodesRow(HamTimelineNode node)
-    {
-        // Preview of Previous Node(s)
-        GUILayout.BeginVertical(Style("box"));
-        GUILayout.Label("Previous Node(s)");
-        if (node.PreviousNodeIDs.Count > 0)
-        {
-            GUILayout.BeginHorizontal();
-            for (int i = 0; i < node.PreviousNodeIDs.Count; ++i)
-            {
-                int descendantIndex = node.GetDescendantIndex(this.activeTimeline, i);
-                NodeButtonPreview(this.activeTimeline.Nodes[node.PreviousNodeIDs[i]], descendantIndex);
-            }
-            GUILayout.EndHorizontal();
-        }
-        else
-        {
-            GUILayout.Label("No Previous Nodes");
-        }
-        GUILayout.EndVertical();
-    }
-
-    private void NodeButtonPreview(HamTimelineNode node, int? previousIndex)
-    {
-        string previewLabel = String.Format("{0} (No Preview)", node.Type);
-        switch (node.Type)
-        {
-            case TimelineNodeType.Dialog:
-            {
-                HamDialogNode n = (HamDialogNode)node;
-                previewLabel = String.Format(
-                    "{0} says \"{1}\"",
-                    this.activeTimeline.Characters[n.SpeakerID].Name,
-                    n.Dialog
-                );
-                break;
-            }
-            case TimelineNodeType.Decision:
-            {
-                HamDecisionNode n = (HamDecisionNode)node;
-                if (previousIndex.HasValue)
-                {
-                    HamDecisionNode.Decision d = n.Decisions[previousIndex.Value];
-                    if (d.IsDialog)
-                    {
-                        previewLabel = String.Format("Decision: \"{0}\"", d.DecisionText);
-                    }
-                    else
-                    {
-                        previewLabel = String.Format("Decision: {0}", d.DecisionText);
-                    }
-                }
-                else
-                {
-                    previewLabel = String.Format("Decision ({0} Choices)", n.Decisions.Count);
-                }
-                break;
-            }
-            case TimelineNodeType.Branch:
-                break;
-            case TimelineNodeType.Consequence:
-                break;
-        }
-        if (GUILayout.Button(previewLabel, Style("FlexButton")))
-        {
-            SetSelectedNode(node);
-            Repaint();
-        }
     }
 
     private void CharacterEditing()
@@ -721,12 +689,12 @@ class HamTimelineEditor : EditorWindow
     private void VariableEditing()
     { 
         GUILayout.Label("Variable Editing", Style("SubTitle"));
-        GUILayout.BeginHorizontal(Style("box"));
+        GUILayout.BeginVertical(Style("box"));
         for (int i = 0; i < (int)VariableType.NumTypes; ++i)
         {
             VariableType varType = (VariableType)i;
             string varLabel = varType.ToString();
-            if (GUILayout.Button("Add " + varLabel))
+            if (GUILayout.Button("Add " + varLabel, Style("FlexButton")))
             {
                 ModalTextWindow.Popup("New " + varLabel + " Name", (name) =>
                 {
@@ -734,7 +702,7 @@ class HamTimelineEditor : EditorWindow
                 });
             }
         }
-        GUILayout.EndHorizontal();
+        GUILayout.EndVertical();
         GUILayout.BeginVertical(Style("box"));
         foreach (HamTimelineVariable v in this.activeTimeline.Variables.Values)
         {
@@ -788,6 +756,7 @@ class HamTimelineEditor : EditorWindow
 
     private void SceneEditing()
     {
+        GUILayout.Label("Scene Editing", Style("SubTitle"));
         if (this.selectedScene == HamTimeline.InvalidID || !this.activeTimeline.Scenes.ContainsKey(this.selectedScene))
         {
             this.selectedScene = this.activeTimeline.DefaultSceneID;

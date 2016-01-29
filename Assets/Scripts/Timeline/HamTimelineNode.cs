@@ -315,6 +315,7 @@ public class HamDecisionNode : HamTimelineNode
 	public HamDecisionNode(int id) : base(TimelineNodeType.Decision, id)
 	{
 		this.Decisions = new List<Decision>();
+		AddDecision("", false);
 	}
 
 	public Decision AddDecision(string text, bool isDialog)
