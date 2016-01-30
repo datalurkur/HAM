@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -80,55 +81,22 @@ public abstract class HamTimelineNode
 		this.ID = id;
 	}
 
-	public void AddPreviousNode(int id)
+	public bool UniquelyParented
 	{
-		if (this.PreviousNodeIDs.Contains(id))
-		{
-			Debug.LogError("Duplicate previous node");
-			return;
-		}
-		this.PreviousNodeIDs.Add(id);
-	}
-	public void RemovePreviousNode(int id)
-	{
-		if (!this.PreviousNodeIDs.Contains(id))
-		{
-			Debug.LogError("Previous node not found");
-			return;
-		}
-		this.PreviousNodeIDs.Remove(id);
+		get { return this.PreviousNodeIDs.Count < 2; }
 	}
 
-	// Visualization and Editing
-	// Walk up the tree until a decision node is found
-	public HamDialogNode GetLastDialogNode(HamTimeline timeline)
-	{
-		if (this.Type == TimelineNodeType.Dialog) { return this as HamDialogNode; }
-		for (int i = 0; i < this.PreviousNodeIDs.Count; ++i)
-		{
-			HamDialogNode last = timeline.Nodes[this.PreviousNodeIDs[i]].GetLastDialogNode(timeline);
-			if (last != null)
-			{
-				return last;
-			}
-		}
-		return null;
-	}
+	public abstract void SetDescendant(int id, int index);
+	public abstract int GetDescendant(int index);
+	public abstract int GetFreeDescendantSlot();
 
-	// Walk up to the parent and determine what choice / branch this node is
-	// This is used for placing the node in the overview and determining the node preview contents for previous nodes
-	public int GetDescendantIndex(HamTimeline timeline, int previousNodeIndex)
-	{
-		if (previousNodeIndex >= this.PreviousNodeIDs.Count) { return -1; }
-		int prevID = this.PreviousNodeIDs[previousNodeIndex];
-		return timeline.Nodes[prevID].GetIndexOfDescendant(this.ID);
-	}
 	public abstract int GetIndexOfDescendant(int descendantID);
-	public abstract void SetNextNode(HamTimeline timeline, HamTimelineNode child, int index);
 	public abstract List<int> GetDescendantIDs();
 
 	public abstract void Pack(DataPacker packer);
 	public abstract void Unpack(DataUnpacker unpacker);
+
+	public abstract string Describe();
 }
 
 public class HamDialogNode : HamTimelineNode
@@ -158,27 +126,31 @@ public class HamDialogNode : HamTimelineNode
 		this.NextNodeID = HamTimeline.InvalidID;
 	}
 
+	public override void SetDescendant(int id, int index)
+	{
+		this.NextNodeID = id;
+	}
+
+	public override int GetDescendant(int index)
+	{
+		return this.NextNodeID;
+	}
+
+	public override int GetFreeDescendantSlot()
+	{
+		if (this.NextNodeID == HamTimeline.InvalidID)
+		{
+			return 0;
+		}
+		else
+		{
+			return -1;
+		}
+	}
+
 	public override int GetIndexOfDescendant(int descendantID)
 	{
 		return (descendantID == this.NextNodeID) ? 0 : -1;
-	}
-
-	public override void SetNextNode(HamTimeline timeline, HamTimelineNode node, int index)
-	{
-		HamTimelineNode previousNode = null;
-		if (this.NextNodeID != HamTimeline.InvalidID)
-		{
-			previousNode = timeline.Nodes[this.NextNodeID];
-		}
-
-		this.NextNodeID = node.ID;
-		node.AddPreviousNode(this.ID);
-
-		if (previousNode != null)
-		{
-			previousNode.RemovePreviousNode(this.ID);
-			node.SetNextNode(timeline, previousNode, 0);
-		}
 	}
 
 	public override List<int> GetDescendantIDs()
@@ -189,6 +161,11 @@ public class HamDialogNode : HamTimelineNode
 			ids.Add(this.NextNodeID);
 		}
 		return ids;
+	}
+
+	public override string Describe()
+	{
+		return String.Format("Dialog {0} : {1}", this.ID, this.Dialog);
 	}
 
 	public override void Pack(DataPacker packer)
@@ -237,9 +214,58 @@ public class HamBranchNode : HamTimelineNode
 		this.Predicates = new List<HamPredicate>();
 	}
 
-	public void AddPredicate()
+	public HamPredicate AddPredicate()
 	{
-		this.Predicates.Add(new HamPredicate());
+		HamPredicate newPredicate = new HamPredicate();
+		this.Predicates.Add(newPredicate);
+		return newPredicate;
+	}
+
+	public override void SetDescendant(int id, int index)
+	{
+		if (index == this.Predicates.Count)
+		{
+			this.DefaultNextID = id;
+		}
+		else if (index > this.Predicates.Count)
+		{
+			AddPredicate().NextNodeID = id;
+		}
+		else
+		{
+			this.Predicates[index].NextNodeID = id;
+		}
+	}
+
+	public override int GetDescendant(int index)
+	{
+		if (index == this.Predicates.Count)
+		{
+			return this.DefaultNextID;
+		}
+		else
+		{
+			return this.Predicates[index].NextNodeID;
+		}
+	}
+
+	public override int GetFreeDescendantSlot()
+	{
+		if (this.DefaultNextID == HamTimeline.InvalidID)
+		{
+			return this.Predicates.Count;
+		}
+		else
+		{
+			for (int i = 0; i < this.Predicates.Count; ++i)
+			{
+				if (this.Predicates[i].NextNodeID == HamTimeline.InvalidID)
+				{
+					return i;
+				}
+			}
+		}
+		return this.Predicates.Count + 1;
 	}
 
 	public override int GetIndexOfDescendant(int descendantID)
@@ -250,47 +276,6 @@ public class HamBranchNode : HamTimelineNode
 		}
 		if (this.DefaultNextID == descendantID) { return this.Predicates.Count; }
 		return -1;
-	}
-
-	public override void SetNextNode(HamTimeline timeline, HamTimelineNode node, int index)
-	{
-		HamTimelineNode previousNode = null;
-		if (index == this.Predicates.Count)
-		{
-			// Replace default
-			if (this.DefaultNextID != HamTimeline.InvalidID)
-			{
-				previousNode = timeline.Nodes[this.DefaultNextID];
-			}
-
-			this.DefaultNextID = node.ID;
-		}
-		else
-		{
-			if (index > this.Predicates.Count)
-			{
-				Debug.LogError("Invalid index for next node");
-				return;
-			}
-
-			// Replace or set the next node on an existing predicate
-			HamPredicate pred = this.Predicates[index];
-
-			if (pred.NextNodeID != HamTimeline.InvalidID)
-			{
-				previousNode = timeline.Nodes[pred.NextNodeID];
-			}
-
-			pred.NextNodeID = node.ID;
-		}
-
-		node.AddPreviousNode(this.ID);
-
-		if (previousNode != null)
-		{
-			previousNode.RemovePreviousNode(this.ID);
-			node.SetNextNode(timeline, previousNode, 0);
-		}
 	}
 
 	public override List<int> GetDescendantIDs()
@@ -308,6 +293,11 @@ public class HamBranchNode : HamTimelineNode
 			ids.Add(this.DefaultNextID);
 		}
 		return ids;
+	}
+
+	public override string Describe()
+	{
+		return String.Format("Branch {0} : {1} branches", this.ID, this.Predicates.Count);
 	}
 
 	public override void Pack(DataPacker packer)
@@ -401,6 +391,35 @@ public class HamDecisionNode : HamTimelineNode
 		return d;
 	}
 
+	public override void SetDescendant(int id, int index)
+	{
+		if (index >= this.Decisions.Count)
+		{
+			AddDecision("", false).NextNodeID = id;
+		}
+		else
+		{
+			this.Decisions[index].NextNodeID = id;
+		}
+	}
+
+	public override int GetDescendant(int index)
+	{
+		return this.Decisions[index].NextNodeID;
+	}
+
+	public override int GetFreeDescendantSlot()
+	{
+		for (int i = 0; i < this.Decisions.Count; ++i)
+		{
+			if (this.Decisions[i].NextNodeID == HamTimeline.InvalidID)
+			{
+				return i;
+			}
+		}
+		return this.Decisions.Count;
+	}
+
 	public override int GetIndexOfDescendant(int descendantID)
 	{
 		for (int i = 0; i < this.Decisions.Count; ++i)
@@ -411,33 +430,6 @@ public class HamDecisionNode : HamTimelineNode
 			}
 		}
 		return -1;
-	}
-
-	public override void SetNextNode(HamTimeline timeline, HamTimelineNode node, int index)
-	{
-		if (index == -1 || index >= this.Decisions.Count)
-		{
-			Debug.LogError("Invalid index for next node");
-			return;
-		}
-
-		// Replace or set the next node on an existing decision
-		Decision d = this.Decisions[index];
-
-		HamTimelineNode previousNode = null;
-		if (d.NextNodeID != HamTimeline.InvalidID)
-		{
-			previousNode = timeline.Nodes[d.NextNodeID];
-		}
-
-		d.NextNodeID = node.ID;
-		node.AddPreviousNode(this.ID);
-
-		if (previousNode != null)
-		{
-			previousNode.RemovePreviousNode(this.ID);
-			node.SetNextNode(timeline, previousNode, 0);
-		}
 	}
 
 	public override List<int> GetDescendantIDs()
@@ -451,6 +443,11 @@ public class HamDecisionNode : HamTimelineNode
 			}
 		}
 		return ids;
+	}
+
+	public override string Describe()
+	{
+		return String.Format("Decision {0} : {1} choices", this.ID, this.Decisions.Count);
 	}
 
 	public override void Pack(DataPacker packer)
@@ -492,27 +489,31 @@ public class HamConsequenceNode : HamTimelineNode
 		this.Operations.Add(new HamOperation());
 	}
 
+	public override void SetDescendant(int id, int index)
+	{
+		this.NextNodeID = id;
+	}
+
+	public override int GetDescendant(int index)
+	{
+		return this.NextNodeID;
+	}
+
+	public override int GetFreeDescendantSlot()
+	{
+		if (this.NextNodeID == HamTimeline.InvalidID)
+		{
+			return 0;
+		}
+		else
+		{
+			return -1;
+		}
+	}
+
 	public override int GetIndexOfDescendant(int descendantID)
 	{
 		return (descendantID == this.NextNodeID) ? 0 : -1;
-	}
-
-	public override void SetNextNode(HamTimeline timeline, HamTimelineNode node, int index)
-	{
-		HamTimelineNode previousNode = null;
-		if (this.NextNodeID != HamTimeline.InvalidID)
-		{
-			previousNode = timeline.Nodes[this.NextNodeID];
-		}
-
-		this.NextNodeID = node.ID;
-		node.AddPreviousNode(this.ID);
-
-		if (previousNode != null)
-		{
-			previousNode.RemovePreviousNode(this.ID);
-			node.SetNextNode(timeline, previousNode, 0);
-		}
 	}
 
 	public override List<int> GetDescendantIDs()
@@ -523,6 +524,11 @@ public class HamConsequenceNode : HamTimelineNode
 			ids.Add(this.NextNodeID);
 		}
 		return ids;
+	}
+
+	public override string Describe()
+	{
+		return String.Format("Consequence {0} : {1} operations", this.ID, this.Operations.Count);
 	}
 
 	public override void Pack(DataPacker packer)

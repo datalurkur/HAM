@@ -110,7 +110,14 @@ class HamTimelineEditor : EditorWindow
             case SelectionMode.LinkNodes:
                 if (this.Node != node)
                 {
-                    timeline.LinkNodes(this.Node, node, this.DescendantIndex);
+                    if (timeline.CanLinkCleanly(this.Node, node, this.DescendantIndex))
+                    {
+                        timeline.LinkNodes(this.Node, node, this.DescendantIndex);
+                    }
+                    else
+                    {
+                        EditorUtility.DisplayDialog("Node Linking Failed", "No clean way was found to reparent the currently linked node", "OK");
+                    }
                 }
                 this.Mode = SelectionMode.SelectNode;
                 break;
@@ -153,10 +160,8 @@ class HamTimelineEditor : EditorWindow
         this.titleContent = new GUIContent("Timeline Editor");
 
         GUI.skin = Skin;
-        //GUILayout.BeginArea(new Rect(0, 0, this.position.width, this.position.height), Style("FullWindow"));
         if (this.activeTimeline == null) { TimelineSelection(); }
         else { TimelineEditing(); }
-        //GUILayout.EndArea();
         GUI.skin = null;
 
         HandleTimelineEvents();
@@ -286,6 +291,7 @@ class HamTimelineEditor : EditorWindow
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Save")) { SaveTimeline(); }
         if (GUILayout.Button("Save and Close")) { SaveTimeline(true); }
+        if (GUILayout.Button("Close")) { ResetEditorWindow(); }
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
@@ -701,58 +707,80 @@ class HamTimelineEditor : EditorWindow
     private void RightClickNodeContext(HamTimelineNode node, int descendantIndex)
     {
         GenericMenu menu = new GenericMenu();
-        menu.AddItem(
-            new GUIContent("Link To Selection"),
-            false,
-            (a) => { this.selection.BeginLinking(node, descendantIndex); },
-            null
-        );
-        menu.AddItem(
-            new GUIContent("Link To New Dialog"),
-            false,
-            (a) =>
-            {
-                HamDialogNode lastDialog = node.GetLastDialogNode(this.activeTimeline);
-                HamTimelineNode newNode = this.activeTimeline.AddDialogNode(
-                    lastDialog != null ? lastDialog.SceneID : this.activeTimeline.DefaultSceneID,
-                    lastDialog != null ? lastDialog.SpeakerID : this.activeTimeline.NarratorID,
-                    "",
-                    lastDialog != null ? lastDialog.CharacterIDs : null
-                );
-                this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
-            },
-            null
-        );
-        menu.AddItem(
-            new GUIContent("Link To New Decision"),
-            false,
-            (a) =>
-            {
-                HamTimelineNode newNode = this.activeTimeline.AddDecisionNode();
-                this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
-            },
-            null
-        );
-        menu.AddItem(
-            new GUIContent("Link To New Branch"),
-            false,
-            (a) =>
-            {
-                HamTimelineNode newNode = this.activeTimeline.AddBranchNode();
-                this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
-            },
-            null
-        );
-        menu.AddItem(
-            new GUIContent("Link To New Consequence"),
-            false,
-            (a) =>
-            {
-                HamTimelineNode newNode = this.activeTimeline.AddConsequenceNode();
-                this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
-            },
-            null
-        );
+        if (descendantIndex != -1)
+        {
+            menu.AddItem(
+                new GUIContent("Link To Selection"),
+                false,
+                (a) => { this.selection.BeginLinking(node, descendantIndex); },
+                null
+            );
+            menu.AddItem(
+                new GUIContent("Link To New Dialog"),
+                false,
+                (a) =>
+                {
+                    HamDialogNode lastDialog = this.activeTimeline.GetLastDialogNode(node);
+                    HamTimelineNode newNode = this.activeTimeline.AddDialogNode(
+                        lastDialog != null ? lastDialog.SceneID : this.activeTimeline.DefaultSceneID,
+                        lastDialog != null ? lastDialog.SpeakerID : this.activeTimeline.NarratorID,
+                        "",
+                        lastDialog != null ? lastDialog.CharacterIDs : null
+                    );
+                    this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
+                },
+                null
+            );
+            menu.AddItem(
+                new GUIContent("Link To New Decision"),
+                false,
+                () =>
+                {
+                    HamTimelineNode newNode = this.activeTimeline.AddDecisionNode();
+                    this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
+                }
+            );
+            menu.AddItem(
+                new GUIContent("Link To New Branch"),
+                false,
+                () =>
+                {
+                    HamTimelineNode newNode = this.activeTimeline.AddBranchNode();
+                    this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
+                }
+            );
+            menu.AddItem(
+                new GUIContent("Link To New Consequence"),
+                false,
+                () =>
+                {
+                    HamTimelineNode newNode = this.activeTimeline.AddConsequenceNode();
+                    this.activeTimeline.LinkNodes(node, newNode, descendantIndex);
+                }
+            );
+        }
+        if (this.activeTimeline.CanRemoveCleanly(node))
+        {
+            menu.AddItem(
+                new GUIContent("Remove Node (Relink Dependants)"),
+                false,
+                () =>
+                {
+                    this.activeTimeline.DeleteNode(node);
+                }
+            );
+        }
+        if (this.activeTimeline.CanDeleteTree(node))
+        {
+            menu.AddItem(
+                new GUIContent("Remove Node (Delete Dependants)"),
+                false,
+                () =>
+                {
+                    this.activeTimeline.DeleteTree(node);
+                }
+            );
+        }
         menu.ShowAsContext();
     }
 
@@ -761,7 +789,7 @@ class HamTimelineEditor : EditorWindow
         GUILayout.BeginVertical();
 
         GUILayout.BeginHorizontal(Style("DialogNode"));
-        GUILayout.Label("Dialog");
+        GUILayout.Label("(" + node.ID + ") Dialog");
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
@@ -824,13 +852,17 @@ class HamTimelineEditor : EditorWindow
 
         // Node title
         GUILayout.BeginHorizontal(Style("DecisionNode"));
-        GUILayout.Label("Decision");
+        GUILayout.Label("(" + node.ID + ") Decision");
         GUILayout.EndHorizontal();
         if (GUI.Button(GUILayoutUtility.GetLastRect(), GUIContent.none, Style("InvisibleButton")))
         {
             if (Event.current.button == 0)
             {
                 this.selection.ClickedNode(this.activeTimeline, node);
+            }
+            else if (Event.current.button == 1)
+            {
+                RightClickNodeContext(node, -1);
             }
         }
 
@@ -892,13 +924,17 @@ class HamTimelineEditor : EditorWindow
 
         // Node title
         GUILayout.BeginHorizontal(Style("BranchNode"));
-        GUILayout.Label("Branch");
+        GUILayout.Label("(" + node.ID + ") Branch");
         GUILayout.EndHorizontal();
         if (GUI.Button(GUILayoutUtility.GetLastRect(), GUIContent.none, Style("InvisibleButton")))
         {
             if (Event.current.button == 0)
             {
                 this.selection.ClickedNode(this.activeTimeline, node);
+            }
+            else if (Event.current.button == 1)
+            {
+                RightClickNodeContext(node, -1);
             }
         }
 
@@ -963,7 +999,7 @@ class HamTimelineEditor : EditorWindow
         GUILayout.BeginVertical();
 
         GUILayout.BeginHorizontal(Style("ConsequenceNode"));
-        GUILayout.Label("Consequence");
+        GUILayout.Label("(" + node.ID + ") Consequence");
         GUILayout.EndHorizontal();
 
 
