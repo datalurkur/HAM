@@ -144,7 +144,7 @@ class HamTimelineEditor : EditorWindow
         {
             if (this.skin == null)
             {
-                this.skin = AssetDatabase.LoadAssetAtPath("Assets/Editor/Skin/HamSkin.guiskin", typeof(GUISkin)) as GUISkin;
+                this.skin = AssetDatabase.LoadAssetAtPath("Assets/Addons/HAM/Editor/Skin/HamSkin.guiskin", typeof(GUISkin)) as GUISkin;
             }
             return this.skin;
         }

@@ -34,30 +34,23 @@ public class HamNodePlacer
 			this.WidthOffset = 0;
 		}
 
-		public bool SetParent(PlacementNode parent)
+		public void ReParent(PlacementNode parent)
 		{
-			if (this.Parent != null && this.Parent.Depth < parent.Depth)
+			int newDepth = parent.Depth + 1;
+			if (this.Depth < newDepth)
 			{
-				this.Parent.Children.Remove(this);
-				if (this.Parent.Children.Count == 0)
-				{
-					this.Parent.Width = 0;
-				}
-				this.Parent = parent;
-				this.Parent.Children.Add(this);
-				RefreshDepth();
-				return true;
-			}
-			else
-			{
-				return false;
+				this.Depth = newDepth;
+				RefreshDepth(newDepth);
 			}
 		}
 
-		public void RefreshDepth()
+		public void RefreshDepth(int newDepth)
 		{
 			Queue<PlacementNode> depthQueue = new Queue<PlacementNode>();
-			depthQueue.Enqueue(this);
+			for (int i = 0; i < this.Children.Count; ++i)
+			{
+				depthQueue.Enqueue(this.Children[i]);
+			}
 			while (depthQueue.Count > 0)
 			{
 				PlacementNode subNode = depthQueue.Dequeue();
@@ -128,9 +121,9 @@ public class HamNodePlacer
 					visited.Add(dids[j]);
 					hadChildren = true;
 				}
-				else if(this.attemptReparenting && allNodes[dids[j]].SetParent(current))
+				else if(this.attemptReparenting)
 				{
-					hadChildren = true;
+					allNodes[dids[j]].ReParent(current);
 				}
 			}
 			if (!hadChildren)

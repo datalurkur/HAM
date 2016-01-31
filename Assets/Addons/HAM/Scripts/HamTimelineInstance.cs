@@ -3,6 +3,65 @@ using System.Collections.Generic;
 
 public class HamTimelineInstance
 {
+	public void Pack(DataPacker packer)
+	{
+		this.timeline.Pack(packer);
+		packer.Pack(this.variables.Count);
+		foreach (int key in this.variables.Keys)
+		{
+			packer.Pack(key);
+			this.variables[key].Pack(packer);
+		}
+		packer.Pack(this.currentNodeID);
+		packer.Pack(this.currentSceneID);
+		packer.Pack(this.currentCharactersInScene.Count);
+		for (int i = 0; i < this.currentCharactersInScene.Count; ++i)
+		{
+			packer.Pack(this.currentCharactersInScene[i]);
+		}
+		packer.Pack(this.nodeHistory.Count);
+		for (int i = 0; i < this.nodeHistory.Count; ++i)
+		{
+			packer.Pack(this.nodeHistory[i]);
+		}
+	}
+	public void Unpack(DataUnpacker unpacker)
+	{
+		this.timeline = new HamTimeline();
+		this.timeline.Unpack(unpacker);
+
+		int varSize;
+		unpacker.Unpack(out varSize);
+		for (int i = 0; i < varSize; ++i)
+		{
+			int key;
+			unpacker.Unpack(out key);
+			VariableValue val = new VariableValue();
+			val.Unpack(unpacker);
+			this.variables[key] = val;
+		}
+		unpacker.Unpack(out this.currentNodeID);
+		unpacker.Unpack(out this.currentSceneID);
+
+		int charSize;
+		unpacker.Unpack(out charSize);
+		for (int i = 0; i < charSize; ++i)
+		{
+			int next;
+			unpacker.Unpack(out next);
+			this.currentCharactersInScene.Add(next);
+		}
+
+		int historySize;
+		unpacker.Unpack(out historySize);
+		for (int i = 0; i < historySize; ++i)
+		{
+			int history;
+			unpacker.Unpack(out history);
+			this.nodeHistory.Add(history);
+		}
+	}
+
 	public delegate void TimelineEvent(HamTimelineEvent eventData);
 	public TimelineEvent OnTimelineEvent;
 
@@ -10,9 +69,10 @@ public class HamTimelineInstance
 	private Dictionary<int, VariableValue> variables;
 	private int currentNodeID;
 
-	private List<int> nodeHistory;
 	private int currentSceneID;
 	private List<int> currentCharactersInScene;
+
+	private List<int> nodeHistory;
 
 	public HamTimelineInstance(string timelinePath, TimelineEvent onTimelineEvent)
 	{
@@ -129,6 +189,8 @@ public class HamTimelineInstance
 
 	private bool ProcessCurrentNode()
 	{
+		if (this.currentNodeID == HamTimeline.InvalidID) { return true; }
+
 		this.nodeHistory.Add(this.currentNodeID);
 		HamTimelineNode currentNode = this.timeline.Nodes[this.currentNodeID];
 		switch (currentNode.Type)
