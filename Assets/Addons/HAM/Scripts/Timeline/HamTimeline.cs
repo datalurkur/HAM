@@ -449,4 +449,15 @@ public class HamTimeline : Packable
 			);
 		}
 	}
+
+	public bool EvaluatePredicate(HamPredicate predicate, VariableValue instanceValue)
+	{
+		if (predicate.VariableID == InvalidID)
+		{
+			Debug.LogError("Predicate variable not set");
+			return false;
+		}
+		HamTimelineVariable timelineVar = this.Variables[predicate.VariableID];
+		return timelineVar.Compare(predicate.Comparison, instanceValue);
+	}
 }

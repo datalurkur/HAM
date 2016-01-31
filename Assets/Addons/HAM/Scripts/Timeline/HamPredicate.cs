@@ -66,14 +66,4 @@ public class HamPredicate
 		HamTimelineVariable variable = timeline.Variables[this.VariableID];
 		return String.Format("{0} {1} {2}", variable.Name, this.Comparison.ToString(), this.CompareValue.Label());
 	}
-
-	public bool Evaluate(HamTimeline timeline)
-	{
-		if (this.VariableID == HamTimeline.InvalidID)
-		{
-			return false;
-		}
-		HamTimelineVariable variable = timeline.Variables[this.VariableID];
-		return variable.Compare(this.Comparison, this.CompareValue);
-	}
 }

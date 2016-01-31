@@ -127,6 +127,44 @@ public class VariableValue
 		}
 	}
 
+	public void Operate(VariableOperation oper, VariableValue operand)
+	{
+		if (this.Type != operand.Type)
+		{
+			Debug.LogError("Can't operate on different data types");
+			return;
+		}
+
+		switch (this.Type)
+		{
+			case VariableType.Boolean:
+			{
+				switch (oper)
+				{
+				case VariableOperation.Set:
+					Set<bool>(operand.Get<bool>());
+					break;
+				}
+				break;	
+			}
+			case VariableType.Integer:
+			{
+				switch (oper)
+				{
+				case VariableOperation.Set:
+					Set<int>(operand.Get<int>());
+					break;
+				case VariableOperation.Modify:
+					Set<int>(Get<int>() + operand.Get<int>());
+					break;
+				}
+				break;	
+			}
+		}
+
+		Debug.LogError("Failed to operate on variables");
+	}
+
 	public bool Compare(VariableComparison comparison, VariableValue other)
 	{
 		if (this.Type != other.Type)

@@ -61,9 +61,8 @@ public class HamOperation
 		return String.Format("{0} {1} {2}", this.Operator.ToString(), variable.Name, this.Operand.Label());
 	}
 
-	public void Execute()
+	public void Execute(VariableValue instanceVal)
 	{
-		// TODO - Implement me
-		throw new ArgumentException();
+		instanceVal.Operate(this.Operator, this.Operand);
 	}
 }
