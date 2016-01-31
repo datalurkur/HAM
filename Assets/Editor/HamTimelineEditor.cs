@@ -34,6 +34,7 @@ class HamTimelineEditor : EditorWindow
 
     // Consts
     // ==================================================================================
+    private const int kSelectionBorder = 100;
     private const int kTopBarHeight = 95;
     private const int kStatusBarHeight = 25;
     private const int kSideBarWidth = 350;
@@ -42,6 +43,7 @@ class HamTimelineEditor : EditorWindow
     private const int kNodeSpacingX = 270;
     private const int kNodeSpacingY = 120;
     private const int kTangentStrength = 25;
+    private const int kAutoSaveInterval = 300;
     // ==================================================================================
 
     // Classes and Structs
@@ -164,6 +166,18 @@ class HamTimelineEditor : EditorWindow
         else { TimelineEditing(); }
         GUI.skin = null;
 
+        if (this.activeTimeline != null)
+        {
+            int epoch = GetEpochTime();
+            int timeToNextAutosave = kAutoSaveInterval - (epoch - this.lastAutoSave);
+            if (timeToNextAutosave < 0)
+            {
+                Debug.Log("Autosaving...");
+                SaveTimeline(false, true);
+                this.lastAutoSave = epoch;
+            }
+        }
+
         HandleTimelineEvents();
     }
 
@@ -175,6 +189,7 @@ class HamTimelineEditor : EditorWindow
     private Vector2 overviewOffset = Vector2.zero;
     private Dictionary<int,Vector2> overviewNodePlacement;
     private List<NodeConnection> connections = new List<NodeConnection>();
+    private int lastAutoSave = 0;
 
     private void ResetEditorWindow()
     {
@@ -212,7 +227,10 @@ class HamTimelineEditor : EditorWindow
 
     private void TimelineSelection()
     {
+        Rect rect = new Rect(kSelectionBorder, kSelectionBorder, position.width - kSelectionBorder * 2, position.height - kSelectionBorder * 2);
+        GUILayout.BeginArea(rect, Style("box"));
         GUILayout.Label("Select Timeline", Style("Title"));
+        GUILayout.Space(4);
 
         List<string> timelines = GetAllTimelines();
 
@@ -220,17 +238,21 @@ class HamTimelineEditor : EditorWindow
         {
             ModalTextWindow.Popup("Name New Timeline", LoadTimeline);
         }
+        GUILayout.Space(4);
 
         GUILayout.Label("Load", Style("SubTitle"));
+        GUILayout.BeginVertical();
         for (int i = 0; i < timelines.Count; ++i)
         {
-            GUILayout.BeginVertical();
+            GUILayout.BeginHorizontal();
             if (GUILayout.Button(Path.GetFileName(timelines[i])))
             {
                 LoadTimeline(timelines[i]);
             }
-            GUILayout.EndVertical();
+            GUILayout.EndHorizontal();
         }
+        GUILayout.EndVertical();
+        GUILayout.EndArea();
     }
 
     private void TimelineEditing()
@@ -422,7 +444,6 @@ class HamTimelineEditor : EditorWindow
         if (GUILayout.Button("Add Predicate", Style("FlexButton")))
         {
             node.AddPredicate();
-            Repaint();
         }
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
@@ -511,7 +532,6 @@ class HamTimelineEditor : EditorWindow
         if (GUILayout.Button("Add Decision", Style("FlexButton")))
         {
             node.AddDecision("New Decision", false);
-            Repaint();
         }
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
@@ -545,7 +565,6 @@ class HamTimelineEditor : EditorWindow
         if (GUILayout.Button("Add Operation", Style("FlexButton")))
         {
             node.AddOperation();
-            Repaint();
         }
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
@@ -1074,7 +1093,6 @@ class HamTimelineEditor : EditorWindow
                     (userData) =>
                     {
                         this.selectedCharacter = (int)userData;
-                        Repaint();
                     },
                     sC.ID 
                 );
@@ -1168,7 +1186,6 @@ class HamTimelineEditor : EditorWindow
                     (userData) =>
                     {
                         this.selectedScene = (int)userData;
-                        Repaint();
                     },
                     sS.ID 
                 );
@@ -1199,7 +1216,7 @@ class HamTimelineEditor : EditorWindow
         string path = GetTimelinePath();
         return new List<string>(Directory.GetFiles(path)).Where(t => !t.Contains(".meta")).ToList();
     }
-    private void SaveTimeline(bool close = false)
+    private void SaveTimeline(bool close = false, bool makeBackup = false)
     {
         if (this.activeTimeline == null)
         {
@@ -1209,13 +1226,20 @@ class HamTimelineEditor : EditorWindow
 
         string path = Path.Combine(GetTimelinePath(), this.activeTimeline.Name);
 
+        if (makeBackup && File.Exists(path))
+        {
+
+            File.Copy(path, Path.Combine(GetBackupPath(), String.Format("{0}_{1}", this.activeTimeline.Name, GetEpochTime())));
+        }
+
         HamTimeline.Save(this.activeTimeline, path);
 
         if (close)
         {
             ResetEditorWindow();
-            Repaint();
         }
+
+        this.lastAutoSave = GetEpochTime();
     }
     private void LoadTimeline(string name)
     {
@@ -1240,7 +1264,8 @@ class HamTimelineEditor : EditorWindow
                 Debug.LogError(e.StackTrace);
             }
         }
-        Repaint();
+
+        this.lastAutoSave = GetEpochTime();
     }
     private string GetTimelinePath()
     {
@@ -1251,5 +1276,20 @@ class HamTimelineEditor : EditorWindow
         }
         return path;
     }
+    private string GetBackupPath()
+    {
+        string path = Path.Combine(GetTimelinePath(), "Backups");
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+        return path;
+    }
     // ==================================================================================
+
+    private int GetEpochTime()
+    {
+        System.DateTime epochStart = new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
+        return (int)(System.DateTime.UtcNow - epochStart).TotalSeconds;
+    }
 }
