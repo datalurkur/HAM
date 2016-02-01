@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEditor;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -442,11 +441,7 @@ public class HamTimeline : Packable
 
 		if (!passed)
 		{
-			EditorUtility.DisplayDialog(
-				"Sanity Check Failed",
-				"Something went wrong with the tree linkage - please find Andrew and tell him to fix his busted-ass code.",
-				"OK", "Also OK"
-			);
+			Debug.LogError("Failed sanity check");
 		}
 	}
 

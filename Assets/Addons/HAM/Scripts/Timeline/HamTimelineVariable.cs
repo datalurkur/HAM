@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEditor;
 using System;
 using System.Collections;
 
@@ -143,7 +142,7 @@ public class VariableValue
 				{
 				case VariableOperation.Set:
 					Set<bool>(operand.Get<bool>());
-					break;
+					return;
 				}
 				break;	
 			}
@@ -153,10 +152,10 @@ public class VariableValue
 				{
 				case VariableOperation.Set:
 					Set<int>(operand.Get<int>());
-					break;
+					return;
 				case VariableOperation.Modify:
 					Set<int>(Get<int>() + operand.Get<int>());
-					break;
+					return;
 				}
 				break;	
 			}

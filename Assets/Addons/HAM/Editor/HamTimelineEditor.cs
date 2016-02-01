@@ -195,6 +195,7 @@ class HamTimelineEditor : EditorWindow
     {
         this.activeTimeline = null;
         this.activeEditingTab = EditingTab.NodeEditing;
+        this.selection = new SelectionContext();
         this.selectedCharacter = HamTimeline.InvalidID;
         this.selectedScene = HamTimeline.InvalidID;
         this.overviewOffset = Vector2.zero;

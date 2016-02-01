@@ -19,42 +19,42 @@ public class HamTimelineEvent
 
 public class HamSceneChangesEvent : HamTimelineEvent
 {
-	public int SceneID;
+	public HamScene Scene;
 
-	public HamSceneChangesEvent(int newSceneID) : base(HamEventType.SceneChanges)
+	public HamSceneChangesEvent(HamScene scene) : base(HamEventType.SceneChanges)
 	{
-		this.SceneID = newSceneID;
+		this.Scene = scene;
 	}
 }
 
 public class HamCharacterEntersEvent : HamTimelineEvent
 {
-	public int CharacterID;
+	public HamCharacter Character;
 
-	public HamCharacterEntersEvent(int characterID) : base(HamEventType.CharacterEnters)
+	public HamCharacterEntersEvent(HamCharacter character) : base(HamEventType.CharacterEnters)
 	{
-		this.CharacterID = characterID;
+		this.Character = character;
 	}
 }
 
 public class HamCharacterLeavesEvent : HamTimelineEvent
 {
-	public int CharacterID;
+	public HamCharacter Character;
 
-	public HamCharacterLeavesEvent(int characterID) : base(HamEventType.CharacterLeaves)
+	public HamCharacterLeavesEvent(HamCharacter character) : base(HamEventType.CharacterLeaves)
 	{
-		this.CharacterID = characterID;
+		this.Character = character;
 	}
 }
 
 public class HamDialogEvent : HamTimelineEvent
 {
-	public int SpeakerID;
+	public HamCharacter Speaker;
 	public string Dialog;
 
-	public HamDialogEvent(int speakerID, string dialog) : base(HamEventType.Dialog)
+	public HamDialogEvent(HamCharacter speaker, string dialog) : base(HamEventType.Dialog)
 	{
-		this.SpeakerID = speakerID;
+		this.Speaker = speaker;
 		this.Dialog = dialog;
 	}
 }

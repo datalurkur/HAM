@@ -200,24 +200,25 @@ public class HamTimelineInstance
 				HamDialogNode d = (HamDialogNode)currentNode;
 				if (this.currentSceneID != d.SceneID)
 				{
-					this.OnTimelineEvent(new HamSceneChangesEvent(d.SceneID));
+					this.OnTimelineEvent(new HamSceneChangesEvent(this.timeline.Scenes[d.SceneID]));
 					this.currentSceneID = d.SceneID;
 				}
 				for (int i = 0; i < this.currentCharactersInScene.Count; ++i)
 				{
 					if (!d.CharacterIDs.Contains(this.currentCharactersInScene[i]))
 					{
-						this.OnTimelineEvent(new HamCharacterLeavesEvent(this.currentCharactersInScene[i]));
+						this.OnTimelineEvent(new HamCharacterLeavesEvent(this.timeline.Characters[this.currentCharactersInScene[i]]));
 					}
 				}
 				for (int i = 0; i < d.CharacterIDs.Count; ++i)
 				{
 					if (!this.currentCharactersInScene.Contains(d.CharacterIDs[i]))
 					{
-						this.OnTimelineEvent(new HamCharacterEntersEvent(d.CharacterIDs[i]));
+						this.OnTimelineEvent(new HamCharacterEntersEvent(this.timeline.Characters[d.CharacterIDs[i]]));
 					}
 				}
-				this.OnTimelineEvent(new HamDialogEvent(d.SpeakerID, d.Dialog));
+				this.currentCharactersInScene = d.CharacterIDs;
+				this.OnTimelineEvent(new HamDialogEvent(this.timeline.Characters[d.SpeakerID], d.Dialog));
 				return true;
 			}
 			case TimelineNodeType.Decision:
