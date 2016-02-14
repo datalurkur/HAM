@@ -8,6 +8,8 @@ public class HamStage : MonoBehaviour
 {
 	public GameObject ClickablePrefab;
 
+	public GameObject StageContainer;
+
 	public delegate void SelectionMade(int key);
 
 	public bool Animating

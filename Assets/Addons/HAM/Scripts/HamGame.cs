@@ -7,6 +7,16 @@ using System.Collections.Generic;
 
 public class HamGame : MonoBehaviour
 {
+	public enum GameState
+	{
+		MainMenu = 0,
+		NewMenu  = 1,
+		LoadMenu = 2,
+		SaveMenu = 3,
+		PlayGame = 4
+	}
+	private GameState state = GameState.MainMenu;
+
 	public readonly string kVerticalAxis = "Vertical";
 	public readonly string kHorizontalAxis = "Horizontal";
 	public readonly string kSubmitButton = "Submit";
@@ -15,31 +25,61 @@ public class HamGame : MonoBehaviour
 	public const float kRepeatDelay = 0.5f;
 	public const float kRepeatSpeed = 0.2f;
 
-	public string TimelinePath = "Timelines";
 	public HamStage Stage;
+	public GameObject MainMenu;
+	public GameObject NewMenu;
+	public GameObject LoadMenu;
+	public GameObject SaveMenu;
+
 	private HamTimelineInstance timelineInstance;
 
 	protected void Start()
 	{
-		this.timelineInstance = new HamTimelineInstance(this.TimelinePath, OnHamEvent);
-		this.timelineInstance.Start();
+		SwitchState(GameState.MainMenu);
 	}
 
 	protected void Update()
 	{
-		if (Input.GetKeyDown(KeyCode.F))
+		switch (this.state)
 		{
-			GameObject current = EventSystem.current.currentSelectedGameObject;
-			Debug.Log("Currently selected object: " + (current == null ? "NONE" : current.name));
-		}
-
-		if (!this.Stage.Selecting)
-		{
-			if (Input.GetButtonDown(kSubmitButton))
+			case GameState.MainMenu:
+				break;
+			case GameState.NewMenu:
+				break;
+			case GameState.LoadMenu:
+				break;
+			case GameState.SaveMenu:
+				break;
+			case GameState.PlayGame:
 			{
-				Advance();
+				if (!this.Stage.Selecting)
+				{
+					if (Input.GetButtonDown(kSubmitButton))
+					{
+						Advance();
+					}
+				}
+				break;
 			}
 		}
+	}
+
+	public void SwitchState(int newState) { SwitchState((GameState)newState); }
+
+	public void SwitchState(GameState newState)
+	{
+		this.state = newState;
+		UpdateMenuVisibility();
+	}
+
+	public void Quit() { Application.Quit(); }
+
+	public void StartNewGame(string timelinePath)
+	{
+		this.state = GameState.PlayGame;
+		this.timelineInstance = new HamTimelineInstance(timelinePath, OnHamEvent);
+		this.timelineInstance.Start();
+		SwitchState(GameState.PlayGame);
 	}
 
 	public void Advance()
@@ -48,6 +88,15 @@ public class HamGame : MonoBehaviour
 		{
 			this.timelineInstance.Advance();
 		}
+	}
+
+	protected void UpdateMenuVisibility()
+	{
+		this.MainMenu.SetActive(this.state == GameState.MainMenu);
+		this.NewMenu.SetActive(this.state == GameState.NewMenu);
+		this.LoadMenu.SetActive(this.state == GameState.LoadMenu);
+		this.SaveMenu.SetActive(this.state == GameState.SaveMenu);
+		this.Stage.StageContainer.SetActive(this.state == GameState.PlayGame);
 	}
 
 	protected void OnHamEvent(HamTimelineEvent eventData)
