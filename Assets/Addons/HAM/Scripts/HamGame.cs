@@ -1,9 +1,20 @@
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Events;
+using UnityEngine.EventSystems;
 using System;
 using System.Collections.Generic;
 
 public class HamGame : MonoBehaviour
 {
+	public readonly string kVerticalAxis = "Vertical";
+	public readonly string kHorizontalAxis = "Horizontal";
+	public readonly string kSubmitButton = "Submit";
+	public readonly string kCancelButton = "Cancel";
+
+	public const float kRepeatDelay = 0.5f;
+	public const float kRepeatSpeed = 0.2f;
+
 	public string TimelinePath = "Timelines";
 	public HamStage Stage;
 	private HamTimelineInstance timelineInstance;
@@ -11,39 +22,32 @@ public class HamGame : MonoBehaviour
 	protected void Start()
 	{
 		this.timelineInstance = new HamTimelineInstance(this.TimelinePath, OnHamEvent);
-		this.timelineInstance.Advance();
+		this.timelineInstance.Start();
 	}
 
 	protected void Update()
 	{
-		// TODO - Change these to be generic controls - function on both controller and keyboard / mouse
-		if (this.Stage.Selecting)
+		if (Input.GetKeyDown(KeyCode.F))
 		{
-			if (Input.GetKeyDown(KeyCode.UpArrow))
-			{
-				this.Stage.HighlightPrevious();
-			}
-			if (Input.GetKeyDown(KeyCode.DownArrow))
-			{
-				this.Stage.HighlightNext();
-			}
-			if (Input.GetKeyDown(KeyCode.Space))
-			{
-				this.Stage.SelectCurrent();
-			}
+			GameObject current = EventSystem.current.currentSelectedGameObject;
+			Debug.Log("Currently selected object: " + (current == null ? "NONE" : current.name));
 		}
-		else
+
+		if (!this.Stage.Selecting)
 		{
-			if (Input.GetKeyDown(KeyCode.Space))
+			if (Input.GetButtonDown(kSubmitButton))
 			{
-				AdvanceNormally();
+				Advance();
 			}
 		}
 	}
 
-	private void AdvanceNormally()
+	public void Advance()
 	{
-		this.timelineInstance.Advance();
+		if (!this.Stage.Animating)
+		{
+			this.timelineInstance.Advance();
+		}
 	}
 
 	protected void OnHamEvent(HamTimelineEvent eventData)

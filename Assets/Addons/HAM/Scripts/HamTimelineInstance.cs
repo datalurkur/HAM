@@ -89,6 +89,18 @@ public class HamTimelineInstance
 		this.OnTimelineEvent = onTimelineEvent;
 	}
 
+	public void Start()
+	{
+		if (this.currentNodeID == HamTimeline.InvalidID)
+		{
+			this.currentNodeID = this.timeline.OriginNodeID;
+		}	
+		if (!ProcessCurrentNode())
+		{
+			Advance();
+		}
+	}
+
 	public void Advance(int choice = -1)
 	{
 		do
@@ -118,12 +130,6 @@ public class HamTimelineInstance
 
 	private void DetermineNextNode(int choice)
 	{
-		if (this.currentNodeID == HamTimeline.InvalidID)
-		{
-			this.currentNodeID = this.timeline.OriginNodeID;
-			return;
-		}
-
 		HamTimelineNode currentNode = this.timeline.Nodes[this.currentNodeID];
 		switch (currentNode.Type)
 		{

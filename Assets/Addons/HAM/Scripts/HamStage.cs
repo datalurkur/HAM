@@ -10,6 +10,14 @@ public class HamStage : MonoBehaviour
 
 	public delegate void SelectionMade(int key);
 
+	public bool Animating
+	{
+		get
+		{
+			return this.Selecting || this.Writer.Writing;
+		}
+	}
+
 	public RawImage SceneBackground;
 	public RawImage[] CharacterPortraits;
 	public Text SceneBar;
@@ -36,69 +44,31 @@ public class HamStage : MonoBehaviour
 	public void AwaitSelection(Dictionary<int, string> selections, SelectionMade callback)
 	{
 		this.Writer.ClearText();
+		bool first = true;
 		foreach (int key in selections.Keys)
 		{
-			int thisKey = key;
-
 			GameObject clickable = Instantiate(this.ClickablePrefab);
+			clickable.name = "Decision_" + selections[key];
 			clickable.transform.SetParent(this.ClickableContainer.transform, false);
 
-			clickable.GetComponent<Text>().text = selections[key];
+			clickable.GetComponentInChildren<Text>().text = selections[key];
+			int thisKey = key;
+			clickable.GetComponentInChildren<Button>().onClick.AddListener(() => { MakeSelection(thisKey); });
 
-			EventTrigger trigger = clickable.AddComponent<EventTrigger>();
+			clickables.Add(clickable);
 
-			EventTrigger.Entry enterEntry = new EventTrigger.Entry();
-			enterEntry.eventID = EventTriggerType.PointerEnter;
-			enterEntry.callback.AddListener((eventData) => { HighlightSelection(thisKey); });
-			trigger.triggers.Add(enterEntry);
-
-			EventTrigger.Entry clickEntry = new EventTrigger.Entry();
-			clickEntry.eventID = EventTriggerType.PointerClick;
-			clickEntry.callback.AddListener((eventData) => { MakeSelection(thisKey); });
-			trigger.triggers.Add(clickEntry);
-
-			this.clickables.Add(clickable);
-			this.selectionOrder.Add(thisKey);
+			if (first)
+			{
+				EventSystem.current.SetSelectedGameObject(clickable);
+				first = false;
+			}
 		}
-		this.currentIndex = -1;
 		this.Selecting = true;
 		this.selectionCallback = callback;
 	}
 
-	// Driver events (from keyboard)
-	public void HighlightNext()
-	{
-		this.currentIndex += 1;
-		if (this.currentIndex >= this.selectionOrder.Count)
-		{
-			this.currentIndex = 0;
-		}
-		HighlightSelection(this.selectionOrder[this.currentIndex]);
-	}
-	public void HighlightPrevious()
-	{
-		this.currentIndex -= 1;
-		if (this.currentIndex < 0)
-		{
-			this.currentIndex = this.selectionOrder.Count - 1;
-		}
-		HighlightSelection(this.selectionOrder[this.currentIndex]);
-	}
-	public void SelectCurrent()
-	{
-		if (this.currentIndex == -1) { return; }
-		MakeSelection(this.selectionOrder[this.currentIndex]);
-	}
-
-	// Callback events (from click)
-	public void HighlightSelection(int key)
-	{
-		Debug.Log("Selection " + key + " highlighted");
-	}
-
 	public void MakeSelection(int key)
 	{
-		Debug.Log("Selection " + key + " made");
 		this.selectionCallback(key);
 		this.selectionCallback = null;
 
@@ -107,6 +77,7 @@ public class HamStage : MonoBehaviour
 			Destroy(this.clickables[i]);
 		}	
 		this.clickables.Clear();
+
 		this.selectionOrder.Clear();
 		this.Selecting = false;
 	}
