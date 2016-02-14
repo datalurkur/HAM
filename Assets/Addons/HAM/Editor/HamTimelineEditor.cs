@@ -233,7 +233,7 @@ class HamTimelineEditor : EditorWindow
         GUILayout.Label("Select Timeline", Style("Title"));
         GUILayout.Space(4);
 
-        List<string> timelines = GetAllTimelines();
+        List<string> timelines = HamTimeline.GetAllTimelinePaths();
 
         if (GUILayout.Button("Create New Timeline"))
         {
@@ -1212,11 +1212,6 @@ class HamTimelineEditor : EditorWindow
 
     // Saving and Loading
     // ==================================================================================
-    private List<string> GetAllTimelines()
-    {
-        string path = GetTimelinePath();
-        return new List<string>(Directory.GetFiles(path)).Where(t => !t.Contains(".meta")).ToList();
-    }
     private void SaveTimeline(bool close = false, bool makeBackup = false)
     {
         if (this.activeTimeline == null)
@@ -1225,7 +1220,7 @@ class HamTimelineEditor : EditorWindow
             return;
         }
 
-        string path = Path.Combine(GetTimelinePath(), this.activeTimeline.Name);
+        string path = Path.Combine(HamTimeline.GetTimelinePath(), this.activeTimeline.Name);
 
         if (makeBackup && File.Exists(path))
         {
@@ -1245,7 +1240,7 @@ class HamTimelineEditor : EditorWindow
     private void LoadTimeline(string name)
     {
         ResetEditorWindow();
-        string path = Path.Combine(GetTimelinePath(), name);
+        string path = Path.Combine(HamTimeline.GetTimelinePath(), name);
         if (!File.Exists(path))
         {
             this.activeTimeline = new HamTimeline();
@@ -1268,18 +1263,9 @@ class HamTimelineEditor : EditorWindow
 
         this.lastAutoSave = GetEpochTime();
     }
-    private string GetTimelinePath()
-    {
-        string path = Path.Combine(Application.dataPath, "Timelines");
-        if (!Directory.Exists(path))
-        {
-            Directory.CreateDirectory(path);
-        }
-        return path;
-    }
     private string GetBackupPath()
     {
-        string path = Path.Combine(GetTimelinePath(), "Backups");
+        string path = Path.Combine(HamTimeline.GetTimelinePath(), "Backups");
         if (!Directory.Exists(path))
         {
             Directory.CreateDirectory(path);

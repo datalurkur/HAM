@@ -1,6 +1,8 @@
 using UnityEngine;
+using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Collections.Generic;
 
 // The timeline contains the story content and logic
@@ -8,6 +10,11 @@ using System.Collections.Generic;
 // Each node type defines how the timeline progresses once it has been executed
 public class HamTimeline : Packable
 {
+	public enum Version
+	{
+		Original = 0
+	}
+
 	public static void Save(HamTimeline timeline, string path)
 	{
 		DataPacker packer = new BinaryDataPacker();
@@ -22,11 +29,54 @@ public class HamTimeline : Packable
 		timeline.Unpack(unpacker);
 		return timeline;
 	}
+	public static string LoadName(string path)
+	{
+		// The idea is to read only the number of bytes we need to determine the name of the timeline
+		// We're going to exploit our knowledge of the way the unpacker works to do this - kinda hacky, but eh
+		// Maybe one of these days I'll change the unpacker over to work with streams instead of byte arrays
+		// Probably not
+		// ...definitely not
+		FileStream fs = new FileStream(path, FileMode.Open);
+
+		// Skip over the version
+		fs.Position = 4;	
+
+		// Read the length of the string
+		byte[] strLengthBytes = new byte[4];
+		fs.Read(strLengthBytes, 0, 4);
+		int strLength = BitConverter.ToInt32(strLengthBytes, 0);
+
+		// Read the actual string data
+		byte[] strBytes = new byte[strLength];
+		fs.Read(strBytes, 0, strLength);
+
+		// Tidy up the stream
+		fs.Close();
+
+		// Unpack and return the string
+        char[] cArray = System.Text.Encoding.Unicode.GetChars(strBytes, 0, strBytes.Length);
+        return new string(cArray);
+	}
+    public static List<string> GetAllTimelinePaths()
+    {
+        string path = GetTimelinePath();
+        return new List<string>(Directory.GetFiles(path)).Where(t => !t.Contains(".meta")).ToList();
+    }
+    public static string GetTimelinePath()
+    {
+        string path = Path.Combine(Application.dataPath, "Timelines");
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+        return path;
+    }
 
 	public void Pack(DataPacker packer)
 	{
-		packer.Pack(this.IDCount);
+		packer.Pack((int)Version.Original);
 		packer.Pack(this.Name);
+		packer.Pack(this.IDCount);
 		packer.Pack(this.OriginNodeID);
 		packer.Pack(this.NarratorID);
 		packer.Pack(this.DefaultSceneID);
@@ -57,8 +107,13 @@ public class HamTimeline : Packable
 	}
 	public void Unpack(DataUnpacker unpacker)
 	{
-		unpacker.Unpack(out this.IDCount);
+		int versionInt;
+		unpacker.Unpack(out versionInt);
+		// TODO - In the future, we'll want to have separate unpacker functions based on version diffs
+		//        For now there aren't any, but we'll stick this version int here for when that day arrives
+
 		unpacker.Unpack(out this.Name);
+		unpacker.Unpack(out this.IDCount);
 		unpacker.Unpack(out this.OriginNodeID);
 		unpacker.Unpack(out this.NarratorID);
 		unpacker.Unpack(out this.DefaultSceneID);

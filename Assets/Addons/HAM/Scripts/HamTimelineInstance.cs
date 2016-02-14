@@ -195,7 +195,11 @@ public class HamTimelineInstance
 
 	private bool ProcessCurrentNode()
 	{
-		if (this.currentNodeID == HamTimeline.InvalidID) { return true; }
+		if (this.currentNodeID == HamTimeline.InvalidID)
+		{
+			this.OnTimelineEvent(new HamTimelineEndsEvent());
+			return true;
+		}
 
 		this.nodeHistory.Add(this.currentNodeID);
 		HamTimelineNode currentNode = this.timeline.Nodes[this.currentNodeID];

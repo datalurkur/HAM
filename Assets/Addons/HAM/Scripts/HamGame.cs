@@ -7,6 +7,8 @@ using System.Collections.Generic;
 
 public class HamGame : MonoBehaviour
 {
+	public static HamGame Instance;
+
 	public enum GameState
 	{
 		MainMenu = 0,
@@ -26,12 +28,32 @@ public class HamGame : MonoBehaviour
 	public const float kRepeatSpeed = 0.2f;
 
 	public HamStage Stage;
-	public GameObject MainMenu;
-	public GameObject NewMenu;
-	public GameObject LoadMenu;
-	public GameObject SaveMenu;
+	public HamMainMenu MainMenu;
+	public HamNewMenu NewMenu;
+	public HamLoadMenu LoadMenu;
+	public HamSaveMenu SaveMenu;
 
 	private HamTimelineInstance timelineInstance;
+
+	private Dictionary<string, string> availableTimelines;
+
+	protected void Awake()
+	{
+		Instance = this;
+
+		this.availableTimelines = new Dictionary<string, string>();
+		List<string> paths = HamTimeline.GetAllTimelinePaths();
+		for (int i = 0; i < paths.Count; ++i)
+		{
+			string name = HamTimeline.LoadName(paths[i]);
+			this.availableTimelines.Add(name, paths[i]);
+		}
+	}
+
+	protected void OnDestroy()
+	{
+		Instance = null;
+	}
 
 	protected void Start()
 	{
@@ -42,14 +64,6 @@ public class HamGame : MonoBehaviour
 	{
 		switch (this.state)
 		{
-			case GameState.MainMenu:
-				break;
-			case GameState.NewMenu:
-				break;
-			case GameState.LoadMenu:
-				break;
-			case GameState.SaveMenu:
-				break;
 			case GameState.PlayGame:
 			{
 				if (!this.Stage.Selecting)
@@ -69,13 +83,34 @@ public class HamGame : MonoBehaviour
 	public void SwitchState(GameState newState)
 	{
 		this.state = newState;
+		switch (this.state)
+		{
+			case GameState.MainMenu:
+				break;
+			case GameState.NewMenu:
+			{
+				List<string> timelineNames = new List<string>();
+				foreach (string key in this.availableTimelines.Keys)
+				{
+					timelineNames.Add(key);
+				}
+				this.NewMenu.RegenerateButtons(timelineNames);
+				break;
+			}
+			case GameState.LoadMenu:
+				break;
+			case GameState.SaveMenu:
+				break;
+		}
 		UpdateMenuVisibility();
 	}
 
 	public void Quit() { Application.Quit(); }
 
-	public void StartNewGame(string timelinePath)
+	public void StartNewGame(string timelineName)
 	{
+		string timelinePath = this.availableTimelines[timelineName];
+
 		this.state = GameState.PlayGame;
 		this.timelineInstance = new HamTimelineInstance(timelinePath, OnHamEvent);
 		this.timelineInstance.Start();
@@ -92,10 +127,10 @@ public class HamGame : MonoBehaviour
 
 	protected void UpdateMenuVisibility()
 	{
-		this.MainMenu.SetActive(this.state == GameState.MainMenu);
-		this.NewMenu.SetActive(this.state == GameState.NewMenu);
-		this.LoadMenu.SetActive(this.state == GameState.LoadMenu);
-		this.SaveMenu.SetActive(this.state == GameState.SaveMenu);
+		this.MainMenu.ContentContainer.SetActive(this.state == GameState.MainMenu);
+		this.NewMenu.ContentContainer.SetActive(this.state == GameState.NewMenu);
+		this.LoadMenu.ContentContainer.SetActive(this.state == GameState.LoadMenu);
+		this.SaveMenu.ContentContainer.SetActive(this.state == GameState.SaveMenu);
 		this.Stage.StageContainer.SetActive(this.state == GameState.PlayGame);
 	}
 
@@ -141,6 +176,9 @@ public class HamGame : MonoBehaviour
 				this.Stage.AwaitSelection(decisions, (key) => { this.timelineInstance.Advance((int)key); });
 				break;
 			}
+			case HamEventType.TimelineEnds:
+				SwitchState(GameState.MainMenu);
+				break;
 		}
 	}
 }

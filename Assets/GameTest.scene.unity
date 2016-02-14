@@ -117,10 +117,10 @@ RectTransform:
   - {fileID: 1202436806}
   m_Father: {fileID: 131416422}
   m_RootOrder: 0
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 300, y: -350}
-  m_SizeDelta: {x: 600, y: 100}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &94404051
 MonoBehaviour:
@@ -578,7 +578,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &332509049
 RectTransform:
   m_ObjectHideFlags: 0
@@ -608,6 +608,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 14888a7e672ff4d48a2125134ce7ebe2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ContentContainer: {fileID: 2125076316}
+  SaveButton: {fileID: 859717351}
 --- !u!1 &363185991
 GameObject:
   m_ObjectHideFlags: 0
@@ -1128,7 +1130,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &788547576
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1158,6 +1160,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c8c44c02c2441f4db547fa7f39a50a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ContentContainer: {fileID: 366456739}
 --- !u!1 &805298265
 GameObject:
   m_ObjectHideFlags: 0
@@ -1582,7 +1585,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &944078098
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1612,6 +1615,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6380d8fe79571924f9a9a1c017d4ba5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ButtonPrefab: {fileID: 177208, guid: 865e1441d69de5948b1014f5addbc073, type: 2}
+  ContentContainer: {fileID: 1073716004}
+  ButtonContainer: {fileID: 855817194}
 --- !u!1 &958626508
 GameObject:
   m_ObjectHideFlags: 0
@@ -1856,10 +1862,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Stage: {fileID: 322451238}
-  MainMenu: {fileID: 332509048}
-  NewMenu: {fileID: 944078097}
-  LoadMenu: {fileID: 788547575}
-  SaveMenu: {fileID: 1986573630}
+  MainMenu: {fileID: 332509050}
+  NewMenu: {fileID: 944078099}
+  LoadMenu: {fileID: 788547577}
+  SaveMenu: {fileID: 1986573632}
 --- !u!114 &1156860725
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2232,10 +2238,10 @@ RectTransform:
   - {fileID: 241467898}
   m_Father: {fileID: 131416422}
   m_RootOrder: 3
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 300, y: -650}
-  m_SizeDelta: {x: 600, y: 100}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1652809630
 MonoBehaviour:
@@ -2454,10 +2460,10 @@ RectTransform:
   - {fileID: 427760177}
   m_Father: {fileID: 131416422}
   m_RootOrder: 1
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 300, y: -500}
-  m_SizeDelta: {x: 600, y: 100}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1702648254
 MonoBehaviour:
@@ -2730,7 +2736,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1986573631
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2760,6 +2766,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f779387312a0275438e834804b6a3a60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ContentContainer: {fileID: 1064084667}
 --- !u!1 &2029235760
 GameObject:
   m_ObjectHideFlags: 0

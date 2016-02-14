@@ -7,7 +7,8 @@ public enum HamEventType
 	CharacterEnters,
 	CharacterLeaves,
 	Dialog,
-	Choice
+	Choice,
+	TimelineEnds
 }
 
 public class HamTimelineEvent
@@ -72,4 +73,9 @@ public class HamChoiceEvent : HamTimelineEvent
 	{
 		this.Choices[id] = decision;
 	}
+}
+
+public class HamTimelineEndsEvent : HamTimelineEvent
+{
+	public HamTimelineEndsEvent() : base(HamEventType.TimelineEnds) {}
 }
