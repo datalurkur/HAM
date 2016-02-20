@@ -1,8 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class HamMainMenu : MonoBehaviour
+public class HamMainMenu : HamAnimatedMenu
 {
-	public GameObject ContentContainer;
 	public GameObject SaveButton;
 }

@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 public class HamGame : MonoBehaviour
@@ -28,10 +29,13 @@ public class HamGame : MonoBehaviour
 	public const float kRepeatSpeed = 0.2f;
 
 	public HamStage Stage;
+	public GameObject MenuCommon;
 	public HamMainMenu MainMenu;
 	public HamNewMenu NewMenu;
 	public HamLoadMenu LoadMenu;
 	public HamSaveMenu SaveMenu;
+
+	private HamAnimatedMenu currentMenu = null;
 
 	private HamTimelineInstance timelineInstance;
 
@@ -86,6 +90,7 @@ public class HamGame : MonoBehaviour
 		switch (this.state)
 		{
 			case GameState.MainMenu:
+				StartCoroutine(SwapMenus(this.MainMenu));
 				break;
 			case GameState.NewMenu:
 			{
@@ -95,14 +100,21 @@ public class HamGame : MonoBehaviour
 					timelineNames.Add(key);
 				}
 				this.NewMenu.RegenerateButtons(timelineNames);
+				StartCoroutine(SwapMenus(this.NewMenu));
 				break;
 			}
 			case GameState.LoadMenu:
+				StartCoroutine(SwapMenus(this.LoadMenu));
 				break;
 			case GameState.SaveMenu:
+				StartCoroutine(SwapMenus(this.SaveMenu));
+				break;
+			default:
+				StartCoroutine(SwapMenus(null));
 				break;
 		}
-		UpdateMenuVisibility();
+		this.Stage.StageContainer.SetActive(this.state == GameState.PlayGame);
+		this.MenuCommon.SetActive(this.state != GameState.PlayGame);
 	}
 
 	public void Quit() { Application.Quit(); }
@@ -125,13 +137,18 @@ public class HamGame : MonoBehaviour
 		}
 	}
 
-	protected void UpdateMenuVisibility()
+	protected IEnumerator SwapMenus(HamAnimatedMenu newMenu)
 	{
-		this.MainMenu.ContentContainer.SetActive(this.state == GameState.MainMenu);
-		this.NewMenu.ContentContainer.SetActive(this.state == GameState.NewMenu);
-		this.LoadMenu.ContentContainer.SetActive(this.state == GameState.LoadMenu);
-		this.SaveMenu.ContentContainer.SetActive(this.state == GameState.SaveMenu);
-		this.Stage.StageContainer.SetActive(this.state == GameState.PlayGame);
+		if (this.currentMenu != null)
+		{
+			this.currentMenu.MenuActive = false;
+			while (this.currentMenu.MenuHydrated) { yield return null; }
+		}
+		if (newMenu != null)
+		{
+			newMenu.MenuActive = true;
+		}
+		this.currentMenu = newMenu;
 	}
 
 	protected void OnHamEvent(HamTimelineEvent eventData)

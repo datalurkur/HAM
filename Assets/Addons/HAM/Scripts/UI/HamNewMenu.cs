@@ -2,10 +2,9 @@
 using UnityEngine.UI;
 using System.Collections.Generic;
 
-public class HamNewMenu : MonoBehaviour
+public class HamNewMenu : HamAnimatedMenu
 {
 	public GameObject ButtonPrefab;
-	public GameObject ContentContainer;
 	public GameObject ButtonContainer;
 
 	public void RegenerateButtons(List<string> timelineNames)

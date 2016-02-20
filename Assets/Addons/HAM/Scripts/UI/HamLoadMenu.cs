@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class HamLoadMenu : MonoBehaviour
+public class HamLoadMenu : HamAnimatedMenu
 {
-	public GameObject ContentContainer;
 }
